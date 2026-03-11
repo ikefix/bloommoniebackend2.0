@@ -139,11 +139,6 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-    // Subscription check
-    if (!user.subscription || user.subscription === "free") {
-      return res.status(403).json({ message: "Subscription expired. Please upgrade." });
-    }
-
     const token = crypto.randomBytes(32).toString("hex"); // replace with JWT in production
     res.json({ token, user });
   } catch (err) {

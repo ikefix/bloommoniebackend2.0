@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 
 
 import userRoutes from "./route/auth.js";
+import walletRoutes from "./route/wallet.js";
 dotenv.config();
 
 
@@ -44,6 +45,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use("/api/users", userRoutes);
+app.use("/api/wallet", walletRoutes);
 
 /* Database Connection with Retry Logic */
 // +++++++++++++++ MongoDB connection +++++++++++++++
