@@ -1,18 +1,18 @@
 import { Router } from "express";
 import User from "../models/user.js";
-import Savings from "../models/savings.js";
+import Wallet from "../models/wallet.js";
+import LedgerEntry from "../models/ledger.js";
+import FraudDetection from "../models/fraudDetection.js";
+import PaystackService from "../service/paystackService.js";
 import auth from "../middlewares/auth.js";
+import crypto from "crypto";
+import mongoose from "mongoose";
 
 const router = Router();
 
-// Helper function to get or create savings account
-const getOrCreateSavings = async (userId) => {
-  let savings = await Savings.findOne({ userId });
-  if (!savings) {
-    savings = new Savings({ userId });
-    await savings.save();
-  }
-  return savings;
+// Helper function to generate unique reference
+const generateReference = (prefix) => {
+  return `${prefix}_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 };
 
 /* =========================
@@ -20,20 +20,39 @@ const getOrCreateSavings = async (userId) => {
 ========================= */
 router.get("/balance", auth, async (req, res) => {
   try {
-    const savings = await getOrCreateSavings(req.user._id);
+    const wallet = await Wallet.getUserWallet(req.user._id);
+    
     res.json({ 
-      balance: savings.balance,
-      lastUpdated: savings.lastUpdated,
-      isActive: savings.isActive
+      balance: wallet.balance,
+      availableBalance: wallet.availableBalance,
+      lockedBalance: wallet.lockedBalance,
+      currency: wallet.currency,
+      status: wallet.status,
+      lastTransactionAt: wallet.lastTransactionAt
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
 /* =========================
-   ADD MONEY TO WALLET
+   GET WALLET SUMMARY
+========================= */
+router.get("/summary", auth, async (req, res) => {
+  try {
+    const wallet = await Wallet.getUserWallet(req.user._id);
+    const summary = await wallet.getSummary();
+    
+    res.json(summary);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* =========================
+   ADD MONEY TO WALLET (Manual/Admin)
 ========================= */
 router.post("/add-money", auth, async (req, res) => {
   try {
@@ -47,42 +66,95 @@ router.post("/add-money", auth, async (req, res) => {
       return res.status(400).json({ message: "Description is required" });
     }
 
-    const savings = await getOrCreateSavings(req.user._id);
+    // Get user wallet
+    const wallet = await Wallet.getUserWallet(req.user._id);
     
-    // Update balance
-    savings.balance += amount;
+    // Check transaction limits
+    await wallet.checkTransactionLimit(amount, "deposit");
     
-    // Add transaction
-    await savings.addTransaction("deposit", amount, description);
-    
-    // Update user's wallet balance
-    await User.findByIdAndUpdate(req.user._id, { 
-      walletBalance: savings.balance 
+    // Perform fraud detection
+    const fraudCheck = await FraudDetection.analyzeTransaction({
+      userId: req.user._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      transactionType: "deposit",
+      reference: generateReference("MANUAL_DEPOSIT"),
+      amount
     });
+
+    if (fraudCheck.action === "block") {
+      return res.status(403).json({ 
+        message: "Transaction blocked due to security concerns",
+        riskScore: fraudCheck.riskScore
+      });
+    }
+
+    const reference = generateReference("MANUAL_DEPOSIT");
+    
+    // Create double-entry ledger entries
+    await LedgerEntry.createDoubleEntry([
+      {
+        accountType: "wallet",
+        accountId: wallet._id,
+        userId: req.user._id,
+        debit: 0,
+        credit: amount,
+        balance: wallet.balance + amount,
+        reference,
+        transactionType: "deposit",
+        description,
+        metadata: {
+          paymentMethod: "manual",
+          fraudCheckId: fraudCheck._id
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      },
+      {
+        accountType: "system",
+        accountId: new mongoose.Types.ObjectId(),
+        userId: req.user._id,
+        debit: amount,
+        credit: 0,
+        balance: 0,
+        reference,
+        transactionType: "settlement",
+        description: `Manual deposit settlement: ${description}`,
+        metadata: {
+          paymentMethod: "manual",
+          fraudCheckId: fraudCheck._id
+        }
+      }
+    ]);
+
+    // Update wallet balance
+    await wallet.updateBalance(amount, "credit");
 
     res.json({ 
       message: "Money added successfully",
-      newBalance: savings.balance,
+      newBalance: wallet.balance,
+      availableBalance: wallet.availableBalance,
       transaction: {
+        reference,
         type: "deposit",
         amount,
         description,
-        balance: savings.balance,
+        balance: wallet.balance,
         timestamp: new Date()
       }
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
 /* =========================
-   WITHDRAW MONEY FROM WALLET
+   WITHDRAW MONEY TO BANK ACCOUNT
 ========================= */
 router.post("/withdraw", auth, async (req, res) => {
   try {
-    const { amount, description } = req.body;
+    const { amount, description, recipientCode } = req.body;
     
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: "Amount must be greater than 0" });
@@ -92,37 +164,135 @@ router.post("/withdraw", auth, async (req, res) => {
       return res.status(400).json({ message: "Description is required" });
     }
 
-    const savings = await getOrCreateSavings(req.user._id);
+    if (!recipientCode) {
+      return res.status(400).json({ message: "Recipient code is required. Create a transfer recipient first." });
+    }
+
+    // Get user wallet
+    const wallet = await Wallet.getUserWallet(req.user._id);
     
-    if (savings.balance < amount) {
-      return res.status(400).json({ message: "Insufficient balance" });
+    if (wallet.status !== "active") {
+      return res.status(403).json({ message: "Wallet is not active" });
     }
     
-    // Update balance
-    savings.balance -= amount;
+    if (wallet.availableBalance < amount) {
+      return res.status(400).json({ message: "Insufficient available balance" });
+    }
     
-    // Add transaction
-    await savings.addTransaction("withdrawal", amount, description);
+    // Check transaction limits
+    await wallet.checkTransactionLimit(amount, "withdrawal");
     
-    // Update user's wallet balance
-    await User.findByIdAndUpdate(req.user._id, { 
-      walletBalance: savings.balance 
+    // Perform fraud detection
+    const fraudCheck = await FraudDetection.analyzeTransaction({
+      userId: req.user._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      transactionType: "withdrawal",
+      reference: generateReference("WITHDRAWAL"),
+      amount
     });
 
-    res.json({ 
-      message: "Money withdrawn successfully",
-      newBalance: savings.balance,
-      transaction: {
-        type: "withdrawal",
+    if (fraudCheck.action === "block") {
+      return res.status(403).json({ 
+        message: "Withdrawal blocked due to security concerns",
+        riskScore: fraudCheck.riskScore
+      });
+    }
+
+    // Lock funds temporarily
+    await wallet.lockFunds(amount, "Bank withdrawal processing");
+
+    const reference = generateReference("WITHDRAWAL");
+    
+    try {
+      // Initiate transfer via Paystack
+      const transferResult = await PaystackService.initiateTransfer(
+        recipientCode,
         amount,
-        description,
-        balance: savings.balance,
-        timestamp: new Date()
+        description
+      );
+
+      if (!transferResult.success) {
+        // Unlock funds if transfer failed
+        await wallet.unlockFunds(amount);
+        throw new Error(transferResult.message || "Transfer failed");
       }
-    });
+
+      // Create double-entry ledger entries
+      await LedgerEntry.createDoubleEntry([
+        {
+          accountType: "wallet",
+          accountId: wallet._id,
+          userId: req.user._id,
+          debit: amount,
+          credit: 0,
+          balance: wallet.balance - amount,
+          reference,
+          transactionType: "withdrawal",
+          description: `Bank transfer: ${transferResult.data.reference} - ${description}`,
+          metadata: {
+            paymentMethod: "bank_transfer",
+            recipientCode,
+            transferReference: transferResult.data.reference,
+            fraudCheckId: fraudCheck._id
+          },
+          gatewayReference: transferResult.data.reference,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        },
+        {
+          accountType: "settlement",
+          accountId: new mongoose.Types.ObjectId(),
+          userId: req.user._id,
+          debit: 0,
+          credit: amount,
+          balance: 0,
+          reference,
+          transactionType: "settlement",
+          description: `Bank transfer settlement: ${transferResult.data.reference}`,
+          metadata: {
+            paymentMethod: "bank_transfer",
+            recipientCode,
+            transferReference: transferResult.data.reference
+          }
+        }
+      ]);
+
+      // Update wallet balance (funds already locked)
+      wallet.balance -= amount;
+      wallet.lastTransactionAt = new Date();
+      await wallet.save();
+
+      res.json({ 
+        message: "Withdrawal initiated successfully",
+        newBalance: wallet.balance,
+        availableBalance: wallet.availableBalance,
+        lockedBalance: wallet.lockedBalance,
+        transfer: {
+          reference: transferResult.data.reference,
+          amount: amount,
+          description,
+          recipientCode,
+          status: "pending",
+          transferCode: transferResult.data.transfer_code
+        },
+        transaction: {
+          reference,
+          type: "withdrawal",
+          amount,
+          description: `Bank transfer: ${transferResult.data.reference} - ${description}`,
+          balance: wallet.balance,
+          timestamp: new Date()
+        }
+      });
+    } catch (transferError) {
+      // Unlock funds on transfer failure
+      await wallet.unlockFunds(amount);
+      throw transferError;
+    }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
@@ -137,13 +307,16 @@ router.post("/transfer", auth, async (req, res) => {
       return res.status(400).json({ message: "All fields are required and amount must be greater than 0" });
     }
 
-    // Get sender's savings account
-    const senderSavings = await getOrCreateSavings(req.user._id);
+    // Get sender's wallet
+    const senderWallet = await Wallet.getUserWallet(req.user._id);
     
-    if (senderSavings.balance < amount) {
+    if (senderWallet.availableBalance < amount) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
+    // Check transaction limits
+    await senderWallet.checkTransactionLimit(amount, "transfer");
+    
     // Find recipient
     const recipient = await User.findOne({ phone: recipientPhone });
     if (!recipient) {
@@ -154,41 +327,92 @@ router.post("/transfer", auth, async (req, res) => {
       return res.status(400).json({ message: "Cannot transfer to yourself" });
     }
 
-    // Get recipient's savings account
-    const recipientSavings = await getOrCreateSavings(recipient._id);
+    // Get recipient's wallet
+    const recipientWallet = await Wallet.getUserWallet(recipient._id);
+    
+    if (recipientWallet.status !== "active") {
+      return res.status(400).json({ message: "Recipient wallet is not active" });
+    }
 
-    // Update balances
-    senderSavings.balance -= amount;
-    recipientSavings.balance += amount;
-
-    // Add transactions
-    await senderSavings.addTransaction("transfer_out", amount, description, req.user._id, recipient._id);
-    await recipientSavings.addTransaction("transfer_in", amount, description, req.user._id, recipient._id);
-
-    // Update both users' wallet balances
-    await User.findByIdAndUpdate(req.user._id, { 
-      walletBalance: senderSavings.balance 
+    // Perform fraud detection
+    const fraudCheck = await FraudDetection.analyzeTransaction({
+      userId: req.user._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      transactionType: "transfer",
+      reference: generateReference("TRANSFER"),
+      amount
     });
-    await User.findByIdAndUpdate(recipient._id, { 
-      walletBalance: recipientSavings.balance 
-    });
+
+    if (fraudCheck.action === "block") {
+      return res.status(403).json({ 
+        message: "Transfer blocked due to security concerns",
+        riskScore: fraudCheck.riskScore
+      });
+    }
+
+    const reference = generateReference("TRANSFER");
+    
+    // Create double-entry ledger entries
+    await LedgerEntry.createDoubleEntry([
+      {
+        accountType: "wallet",
+        accountId: senderWallet._id,
+        userId: req.user._id,
+        debit: amount,
+        credit: 0,
+        balance: senderWallet.balance - amount,
+        reference,
+        transactionType: "transfer_out",
+        description: `Transfer to ${recipient.name}: ${description}`,
+        metadata: {
+          recipientId: recipient._id,
+          recipientPhone: recipient.phone,
+          fraudCheckId: fraudCheck._id
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      },
+      {
+        accountType: "wallet",
+        accountId: recipientWallet._id,
+        userId: recipient._id,
+        debit: 0,
+        credit: amount,
+        balance: recipientWallet.balance + amount,
+        reference,
+        transactionType: "transfer_in",
+        description: `Transfer from ${req.user.name}: ${description}`,
+        metadata: {
+          senderId: req.user._id,
+          senderPhone: req.user.phone
+        }
+      }
+    ]);
+
+    // Update both wallets
+    await senderWallet.updateBalance(amount, "debit");
+    await recipientWallet.updateBalance(amount, "credit");
 
     res.json({ 
       message: "Transfer successful",
-      senderBalance: senderSavings.balance,
+      senderBalance: senderWallet.balance,
+      senderAvailableBalance: senderWallet.availableBalance,
       recipientName: recipient.name,
       transaction: {
+        reference,
         type: "transfer_out",
         amount,
         description,
         toUser: recipient.name,
-        balance: senderSavings.balance,
+        toPhone: recipient.phone,
+        balance: senderWallet.balance,
         timestamp: new Date()
       }
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
@@ -197,38 +421,43 @@ router.post("/transfer", auth, async (req, res) => {
 ========================= */
 router.get("/transactions", auth, async (req, res) => {
   try {
-    const { limit = 20, page = 1, type } = req.query;
+    const { limit = 20, page = 1, type, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
     
-    const savings = await getOrCreateSavings(req.user._id);
+    // Build query
+    const query = { userId: req.user._id, status: "completed" };
     
-    let transactions = savings.transactions;
-    
-    // Filter by type if specified
     if (type) {
-      transactions = transactions.filter(t => t.type === type);
+      query.transactionType = type;
     }
     
-    // Sort by timestamp (newest first)
-    transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
     
-    // Paginate
-    const totalCount = transactions.length;
-    const paginatedTransactions = transactions.slice(skip, skip + parseInt(limit));
+    // Get transactions
+    const transactions = await LedgerEntry.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const totalCount = await LedgerEntry.countDocuments(query);
     
     // Populate user details for transfers
     const populatedTransactions = await Promise.all(
-      paginatedTransactions.map(async (transaction) => {
+      transactions.map(async (transaction) => {
         const populated = { ...transaction.toObject() };
         
-        if (transaction.fromUser) {
-          const fromUser = await User.findById(transaction.fromUser).select('name email phone');
-          populated.fromUserDetails = fromUser;
+        if (transaction.metadata.recipientId) {
+          const recipient = await User.findById(transaction.metadata.recipientId).select('name phone');
+          populated.recipientDetails = recipient;
         }
         
-        if (transaction.toUser) {
-          const toUser = await User.findById(transaction.toUser).select('name email phone');
-          populated.toUserDetails = toUser;
+        if (transaction.metadata.senderId) {
+          const sender = await User.findById(transaction.metadata.senderId).select('name phone');
+          populated.senderDetails = sender;
         }
         
         return populated;
@@ -236,7 +465,17 @@ router.get("/transactions", auth, async (req, res) => {
     );
 
     res.json({
-      transactions: populatedTransactions,
+      transactions: populatedTransactions.map(t => ({
+        reference: t.reference,
+        type: t.transactionType,
+        amount: t.credit || t.debit,
+        description: t.description,
+        balance: t.balance,
+        metadata: t.metadata,
+        createdAt: t.createdAt,
+        recipientDetails: t.recipientDetails,
+        senderDetails: t.senderDetails
+      })),
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalCount / limit),
@@ -246,46 +485,155 @@ router.get("/transactions", auth, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
 /* =========================
-   GET WALLET SUMMARY
+   CREATE TRANSFER RECIPIENT
 ========================= */
-router.get("/summary", auth, async (req, res) => {
+router.post("/create-recipient", auth, async (req, res) => {
   try {
-    const savings = await getOrCreateSavings(req.user._id);
-    
-    const totalDeposits = savings.transactions
-      .filter(t => t.type === "deposit")
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const totalWithdrawals = savings.transactions
-      .filter(t => t.type === "withdrawal")
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const totalTransfersOut = savings.transactions
-      .filter(t => t.type === "transfer_out")
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const totalTransfersIn = savings.transactions
-      .filter(t => t.type === "transfer_in")
-      .reduce((sum, t) => sum + t.amount, 0);
+    const { name, accountNumber, bankCode } = req.body;
 
+    if (!name || !accountNumber || !bankCode) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // First resolve the account to verify details
+    const resolveResult = await PaystackService.resolveAccount(accountNumber, bankCode);
+    if (!resolveResult.success) {
+      return res.status(400).json({
+        message: "Invalid account details",
+        error: resolveResult.message
+      });
+    }
+
+    // Create transfer recipient
+    const result = await PaystackService.createTransferRecipient(
+      "nuban",
+      name,
+      accountNumber,
+      bankCode
+    );
+
+    if (result.success) {
+      res.json({
+        message: "Transfer recipient created successfully",
+        recipient: result.data
+      });
+    } else {
+      res.status(400).json({
+        message: "Failed to create transfer recipient",
+        error: result.message
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* =========================
+   GET BANKS LIST
+========================= */
+router.get("/banks", auth, async (req, res) => {
+  try {
+    const result = await PaystackService.getBanks();
+
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message || "Failed to get banks list"
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* =========================
+   RESOLVE BANK ACCOUNT
+========================= */
+router.post("/resolve-account", auth, async (req, res) => {
+  try {
+    const { accountNumber, bankCode } = req.body;
+
+    if (!accountNumber || !bankCode) {
+      return res.status(400).json({ message: "Account number and bank code are required" });
+    }
+
+    const result = await PaystackService.resolveAccount(accountNumber, bankCode);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message || "Failed to resolve account"
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* =========================
+   LOCK/UNLOCK FUNDS
+========================= */
+router.post("/lock-funds", auth, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Amount must be greater than 0" });
+    }
+    
+    if (!reason) {
+      return res.status(400).json({ message: "Reason is required" });
+    }
+
+    const wallet = await Wallet.getUserWallet(req.user._id);
+    const result = await wallet.lockFunds(amount, reason);
+    
     res.json({
-      balance: savings.balance,
-      totalDeposits,
-      totalWithdrawals,
-      totalTransfersOut,
-      totalTransfersIn,
-      transactionCount: savings.transactions.length,
-      lastUpdated: savings.lastUpdated,
-      isActive: savings.isActive
+      message: "Funds locked successfully",
+      ...result
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+router.post("/unlock-funds", auth, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Amount must be greater than 0" });
+    }
+
+    const wallet = await Wallet.getUserWallet(req.user._id);
+    const result = await wallet.unlockFunds(amount);
+    
+    res.json({
+      message: "Funds unlocked successfully",
+      ...result
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 

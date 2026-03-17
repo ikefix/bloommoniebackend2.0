@@ -7,12 +7,23 @@ import cors from "cors";
 import dns from "dns";       //Remove this during production
 import dotenv from "dotenv";
 
-
 import userRoutes from "./route/auth.js";
 import walletRoutes from "./route/wallet.js";
+import paymentRoutes from "./route/payment.js";
+import virtualAccountRoutes from "./route/virtualAccount.js";
+import savingsPlanRoutes from "./route/savingsPlan.js";
+import savingsFeesRoutes from "./route/savingsFees.js";
+import inventoryRoutes from "./route/inventory.js";
+import posRoutes from "./route/pos.js";
+import supplierRoutes from "./route/supplier.js";
+import purchaseRoutes from "./route/purchase.js";
+import invoiceRoutes from "./route/invoice.js";
+import salesRoutes from "./route/sales.js";
+import expenseRoutes from "./route/expense.js";
+import staffRoutes from "./route/staff.js";
+import reportsRoutes from "./route/reports.js";
+import shopRoutes from "./route/shop.js";
 dotenv.config();
-
-
 
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);  //Remove this during production, it's just to ensure that DNS resolution works correctly in development environments where there might be issues with the default DNS servers.
@@ -46,6 +57,20 @@ app.use(limiter);
 
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/virtual-account", virtualAccountRoutes);
+app.use("/api/savings", savingsPlanRoutes);
+app.use("/api/savings-fees", savingsFeesRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/pos", posRoutes);
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/purchases", purchaseRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/sales", salesRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/shop", shopRoutes);
 
 /* Database Connection with Retry Logic */
 // +++++++++++++++ MongoDB connection +++++++++++++++
