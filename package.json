@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "ngrok": "cd.. && ngrok http --domain=arcelia-unthievish-duplicitously.ngrok-free.dev 5000"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +14,7 @@
   "type": "module",
   "dependencies": {
     "axios": "^1.13.5",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -23,6 +25,7 @@
     "mongoose": "^9.2.2",
     "morgan": "^1.10.1",
     "nodemailer": "^8.0.1",
+    "paystack": "^2.0.1",
     "socket.io": "^4.8.3",
     "twilio": "^5.12.2"
   },
