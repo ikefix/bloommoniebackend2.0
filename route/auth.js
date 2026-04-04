@@ -3,7 +3,7 @@ import User from "../models/user.js";
 import auth from "../middlewares/auth.js";
 import sendEmail from "../service/sendEmail.js";
 import sendOtp from "../service/sendOtp.js"; // Twilio OTP sender
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 const router = Router();

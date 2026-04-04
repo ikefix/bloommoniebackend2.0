@@ -34,7 +34,7 @@ const app = express();
 
 
 
-const MONGODB_CONNECTION_STRING = process.env.MONGO_DB_CONN;
+const MONGODB_CONNECTION_STRING = process.env.MONGO_DB_CONN; // Remove the slash
 const PORT = process.env.PORT || 5000;
 
 /* Middleware */
