@@ -29,8 +29,12 @@ const userSchema = new mongoose.Schema(
 
     phone: {
       type: String,
-      required: true,
       unique: true,
+    },
+
+    profileImage: {
+      type: String,
+      default: ''
     },
 
     verified: {
@@ -44,6 +48,32 @@ const userSchema = new mongoose.Schema(
     },
 
     otp: {
+      type: String,
+      default: null,
+    },
+
+    otpCreatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordTokenExpiry: {
+      type: Date,
+      default: null,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
+    googleId: {
       type: String,
       default: null,
     },
@@ -186,7 +216,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Pre-save middleware
-userSchema.pre("save", async function(next) {
+userSchema.pre("save", function() {
   // Generate referral code if not exists
   if (!this.referralCode) {
     const code = this.name.substring(0, 3).toUpperCase() + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -200,52 +230,7 @@ userSchema.pre("save", async function(next) {
     this.accountLocked = false;
     this.lockedUntil = null;
   }
-  
-  next();
 });
-
-// Instance method to get user's full profile
-userSchema.methods.getFullProfile = async function() {
-  const user = this;
-  
-  // Get wallet
-  const Wallet = mongoose.model('Wallet');
-  const wallet = await Wallet.getUserWallet(user._id);
-  
-  // Get virtual account
-  const VirtualAccount = mongoose.model('VirtualAccount');
-  const virtualAccount = await VirtualAccount.getUserVirtualAccount(user._id);
-  
-  // Get savings plans
-  const SavingsPlan = mongoose.model('SavingsPlan');
-  const savingsPlans = await SavingsPlan.getUserSavingsPlans(user._id);
-  
-  return {
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      verified: user.verified,
-      kycStatus: user.kycStatus,
-      role: user.role,
-      subscription: user.subscription,
-      createdAt: user.createdAt
-    },
-    wallet: wallet ? await wallet.getSummary() : null,
-    virtualAccount: virtualAccount,
-    savingsPlans: savingsPlans.map(plan => ({
-      id: plan._id,
-      name: plan.name,
-      type: plan.type,
-      currentAmount: plan.currentAmount,
-      targetAmount: plan.targetAmount,
-      status: plan.status,
-      progressPercentage: plan.progressPercentage,
-      daysToMaturity: plan.daysToMaturity
-    }))
-  };
-}
 
 // Instance method to lock account
 userSchema.methods.lockAccount = function(hours = 24) {

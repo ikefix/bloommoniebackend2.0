@@ -42,7 +42,7 @@ app.use(morgan("tiny"));
 app.use(express.json());
 // Enable CORS for frontend (set FRONTEND_ORIGIN in .env for production)
 app.use(cors({
-  origin: "http://localhost:5173", // Vite default port
+  origin: ["http://localhost:5173", "https://arcelia-unthievish-duplicitously.ngrok-free.dev"],
   credentials: true
 }));
 
@@ -55,22 +55,28 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-app.use("/api/users", userRoutes);
-app.use("/api/wallet", walletRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api/virtual-account", virtualAccountRoutes);
-app.use("/api/savings", savingsPlanRoutes);
-app.use("/api/savings-fees", savingsFeesRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/pos", posRoutes);
-app.use("/api/suppliers", supplierRoutes);
-app.use("/api/purchases", purchaseRoutes);
-app.use("/api/invoices", invoiceRoutes);
-app.use("/api/sales", salesRoutes);
-app.use("/api/expenses", expenseRoutes);
-app.use("/api/staff", staffRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/shop", shopRoutes);
+const acs = process.env.APIC;
+
+app.use(`/${acs}/users`, userRoutes);
+app.use(`/${acs}/wallet`, walletRoutes);
+app.use(`/${acs}/payment`, paymentRoutes);
+app.use(`/${acs}/virtual-account`, virtualAccountRoutes);
+app.use(`/${acs}/savings`, savingsPlanRoutes);
+app.use(`/${acs}/savings-fees`, savingsFeesRoutes);
+app.use(`/${acs}/inventory`, inventoryRoutes);
+app.use(`/${acs}/pos`, posRoutes);
+app.use(`/${acs}/suppliers`, supplierRoutes);
+app.use(`/${acs}/purchases`, purchaseRoutes);
+app.use(`/${acs}/invoices`, invoiceRoutes);
+app.use(`/${acs}/sales`, salesRoutes);
+app.use(`/${acs}/expenses`, expenseRoutes);
+app.use(`/${acs}/staff`, staffRoutes);
+app.use(`/${acs}/reports`, reportsRoutes);
+app.use(`/${acs}/shop`, shopRoutes);
+
+app.use('/', (_, res) => {
+  res.json({ message: 'Welcome to Bloomrest API', version: '1.0.0' });
+});
 
 /* Database Connection with Retry Logic */
 // +++++++++++++++ MongoDB connection +++++++++++++++
