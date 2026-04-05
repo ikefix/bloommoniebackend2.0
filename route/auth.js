@@ -29,6 +29,9 @@ router.post("/register", async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ message: "User already exists" });
 
+    const phoneExisting = await User.findOne({ phone });
+    if (phoneExisting) return res.status(409).json({ message: "Phone number already in use" });
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
@@ -240,11 +243,14 @@ router.get("/google", (req, res) => {
       }
     });
   }
+
+  let redirectUri = process.env.GOOGLE_REDIRECT_check === 
+  'default' ? process.env.GOOGLE_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI_IK;
   
   // In production, use Google OAuth2 library
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
-    `redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&` +
+    `redirect_uri=${redirectUri}&` +
     `response_type=code&` +
     `scope=email profile&` +
     `access_type=offline`;

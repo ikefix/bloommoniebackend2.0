@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon app.js",
-    "ngrok": "cd.. && ngrok http --domain=arcelia-unthievish-duplicitously.ngrok-free.dev 5000"
+    "ngrok": "cd.. && ngrok http --domain=arcelia-unthievish-duplicitously.ngrok-free.dev 5000",
+    "ngrok:ik": "cd.. && ngrok http --domain=untranquil-anastacia-noncosmically.ngrok-free.dev 5000"
   },
   "keywords": [],
   "author": "",
