@@ -1,5 +1,6 @@
 import { Router } from "express";
 import User from "../models/user.js";
+import jwt from "jsonwebtoken";
 import auth from "../middlewares/auth.js";
 import sendEmail from "../service/sendEmail.js";
 import sendOtp from "../service/sendOtp.js"; // Twilio OTP sender
@@ -244,7 +245,7 @@ router.get("/google", (req, res) => {
     });
   }
 
-  let redirectUri = process.env.GOOGLE_REDIRECT_check === 
+  let redirectUri = process.env.GOOGLE_REDIRECT_CHECK === 
   'default' ? process.env.GOOGLE_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI_IK;
   
   // In production, use Google OAuth2 library
@@ -266,6 +267,21 @@ router.get("/google/callback", async (req, res) => {
   try {
     const { code } = req.query;
     
+    // Detect current ngrok domain from referer header
+    let rid_url = process.env.GOOGLE_REDIRECT_URI; // default fallback
+    
+    const referer = req.get('referer');
+    if (referer) {
+      try {
+        const refererUrl = new URL(referer);
+        const ngrokDomain = refererUrl.origin;
+        rid_url = `${ngrokDomain}/api/users/google/callback`;
+        console.log('Detected ngrok domain:', ngrokDomain);
+      } catch (error) {
+        console.log('Could not parse referer:', referer);
+      }
+    }
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -277,7 +293,7 @@ router.get("/google/callback", async (req, res) => {
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
         code: code,
         grant_type: 'authorization_code',
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        redirect_uri: rid_url,
       }),
     });
 
@@ -333,12 +349,29 @@ router.get("/google/callback", async (req, res) => {
       await user.save();
     }
 
-    // Generate JWT token (replace with proper JWT in production)
-    const token = crypto.randomBytes(32).toString("hex");
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '70d' }
+    );
     
     // Redirect to frontend with token
     const redirectUrl = `http://localhost:5173/auth/google/callback?token=${token}&userId=${user._id}`;
     res.redirect(redirectUrl);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ========================
+    API FOR FETCHING USER DATA
+========================= */
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

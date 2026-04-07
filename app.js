@@ -42,7 +42,7 @@ app.use(morgan("tiny"));
 app.use(express.json());
 // Enable CORS for frontend (set FRONTEND_ORIGIN in .env for production)
 app.use(cors({
-  origin: ["http://localhost:5173", "https://arcelia-unthievish-duplicitously.ngrok-free.dev"],
+  origin: ["http://localhost:5173", "https://arcelia-unthievish-duplicitously.ngrok-free.dev", 'https://untranquil-anastacia-noncosmically.ngrok-free.dev'],
   credentials: true
 }));
 

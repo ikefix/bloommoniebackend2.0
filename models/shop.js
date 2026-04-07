@@ -24,24 +24,24 @@ const shopSchema = new mongoose.Schema({
   businessInfo: {
     businessName: {
       type: String,
-      required: true
+      default: ""
     },
     businessType: {
       type: String,
       enum: ["sole_proprietorship", "partnership", "corporation", "llc"],
-      required: true
+      default: ""
     },
     registrationNumber: {
       type: String,
-      required: true
+      default: ""
     },
     taxId: {
       type: String,
-      required: true
+      default: ""
     },
     businessLicense: {
       type: String,
-      required: true
+      default: ""
     },
     vatNumber: {
       type: String,
