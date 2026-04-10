@@ -7,6 +7,7 @@ import sendOtp from "../service/sendOtp.js"; // Twilio OTP sender
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import emailTemplates from "../templates/emailTemplates.js";
+import shop from "../models/shop.js";
 
 const router = Router();
 
@@ -245,8 +246,8 @@ router.get("/google", (req, res) => {
     });
   }
 
-  let redirectUri = process.env.GOOGLE_REDIRECT_CHECK === 
-  'default' ? process.env.GOOGLE_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI_IK;
+  // Always use the configured redirect URI
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
   
   // In production, use Google OAuth2 library
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -267,20 +268,9 @@ router.get("/google/callback", async (req, res) => {
   try {
     const { code } = req.query;
     
-    // Detect current ngrok domain from referer header
-    let rid_url = process.env.GOOGLE_REDIRECT_URI; // default fallback
-    
-    const referer = req.get('referer');
-    if (referer) {
-      try {
-        const refererUrl = new URL(referer);
-        const ngrokDomain = refererUrl.origin;
-        rid_url = `${ngrokDomain}/api/users/google/callback`;
-        console.log('Detected ngrok domain:', ngrokDomain);
-      } catch (error) {
-        console.log('Could not parse referer:', referer);
-      }
-    }
+    // Always use the configured redirect URI
+    const rid_url = process.env.GOOGLE_REDIRECT_URI;
+    console.log('Using configured redirect URI:', rid_url);
 
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -370,8 +360,25 @@ router.get("/google/callback", async (req, res) => {
 ========================= */
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
+    console.log('JWT Token Debug:');
+    console.log('Auth header:', req.header("Authorization"));
+    console.log('User from middleware:', req.user);
+    
+    const user = await User.findById(req.user.id).select('-password -verificationToken -otp -otpCreatedAt -resetPasswordToken -resetPasswordTokenExpiry');
+
+    const shops = await shop.find({ createdBy: req.user.id });
+    
+    // Also find shops where user is in allowedUsers
+    const allowedShops = await shop.find({ allowedUsers: req.user.id });
+    
+    // Combine all shops user has access to
+    const allAccessibleShops = [...shops, ...allowedShops];
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.json({ user, shops: allAccessibleShops });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

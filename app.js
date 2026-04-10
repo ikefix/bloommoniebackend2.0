@@ -23,6 +23,8 @@ import expenseRoutes from "./route/expense.js";
 import staffRoutes from "./route/staff.js";
 import reportsRoutes from "./route/reports.js";
 import shopRoutes from "./route/shop.js";
+import shopVerificationRoutes from "./route/shopVerification.js";
+import shopInvitationRoutes from "./route/shopInvitation.js";
 dotenv.config();
 
 
@@ -72,7 +74,9 @@ app.use(`/${acs}/sales`, salesRoutes);
 app.use(`/${acs}/expenses`, expenseRoutes);
 app.use(`/${acs}/staff`, staffRoutes);
 app.use(`/${acs}/reports`, reportsRoutes);
-app.use(`/${acs}/shop`, shopRoutes);
+app.use(`/${acs}/shops`, shopRoutes);
+app.use(`/api/shop-verification-page`, shopVerificationRoutes);
+app.use(`/api/shop-invitation`, shopInvitationRoutes);
 
 app.use('/', (_, res) => {
   res.json({ message: 'Welcome to Bloomrest API', version: '1.0.0' });

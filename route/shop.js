@@ -75,7 +75,8 @@ router.post("/", auth, async (req, res) => {
   try {
     const shopData = {
       ...req.body,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      allowedUsers: [] // Initialize empty allowedUsers array
     };
     
     // Generate shop code if not provided

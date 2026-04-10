@@ -198,6 +198,11 @@ const shopSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
+  allowedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null
+  }],
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

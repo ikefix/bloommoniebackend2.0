@@ -1,6 +1,236 @@
 // Beautiful Email Templates with Blue Color Scheme
 
 export const emailTemplates = {
+  // Shop Invitation Template
+  shopInvitation: (name, invitationLink, shopName) => `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shop Access Invitation - Bloomrest</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f0f8ff;
+                color: #1e3a8a;
+            }
+            .container {
+                max-width: 600px;
+                margin: 40px auto;
+                background: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .logo {
+                font-size: 32px;
+                font-weight: bold;
+                color: #3b82f6;
+                margin-bottom: 10px;
+            }
+            .title {
+                color: #1e3a8a;
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+            .invitation-box {
+                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 12px;
+                text-align: center;
+                margin: 30px 0;
+            }
+            .shop-name {
+                font-size: 20px;
+                font-weight: bold;
+                margin-bottom: 15px;
+            }
+            .btn {
+                display: inline-block;
+                background: white;
+                color: #3b82f6;
+                padding: 15px 30px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                margin: 15px 10px;
+                transition: transform 0.2s;
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                color: white;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+            }
+            .divider {
+                text-align: center;
+                margin: 20px 0;
+                color: #64748b;
+            }
+            .footer {
+                text-align: center;
+                margin-top: 30px;
+                color: #64748b;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">🌸 Bloomrest</div>
+                <h1 class="title">Shop Access Invitation</h1>
+            </div>
+            
+            <p>Hi <strong>${name}</strong>,</p>
+            
+            <p>You have been invited to join <strong>${shopName}</strong> as a team member!</p>
+            
+            <div class="invitation-box">
+                <div class="shop-name">${shopName}</div>
+                <p>Choose how you'd like to join:</p>
+                
+                <div style="margin-top: 20px;">
+                    <a href="${invitationLink}" class="btn btn-primary">Create Account</a>
+                    <a href="/api/users/google" class="btn">Sign up with Google</a>
+                </div>
+            </div>
+            
+            <div class="divider">OR</div>
+            
+            <p style="text-align: center;">
+                <strong>Option 1:</strong> Click "Create Account" to set up your password<br>
+                <strong>Option 2:</strong> Click "Sign up with Google" for quick access
+            </p>
+            
+            <div class="footer">
+                <p>This invitation will expire in 7 days.</p>
+                <p>If you didn't expect this invitation, please ignore this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `,
+
+  // Shop Verification Template
+  shopVerification: (name, verificationCode, verificationLink, shopName) => `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shop Access Verification - Bloomrest</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f0f8ff;
+                color: #1e3a8a;
+            }
+            .container {
+                max-width: 600px;
+                margin: 40px auto;
+                background: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+            .logo {
+                font-size: 32px;
+                font-weight: bold;
+                color: #3b82f6;
+                margin-bottom: 10px;
+            }
+            .title {
+                color: #1e3a8a;
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+            .code-box {
+                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                color: white;
+                font-size: 28px;
+                font-weight: bold;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                letter-spacing: 3px;
+                margin: 30px 0;
+                text-transform: uppercase;
+            }
+            .info {
+                background: #eff6ff;
+                border-left: 4px solid #3b82f6;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 0 8px 8px 0;
+            }
+            .btn {
+                display: inline-block;
+                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                color: white;
+                padding: 15px 30px;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                margin-top: 20px;
+            }
+            .footer {
+                text-align: center;
+                margin-top: 30px;
+                color: #64748b;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">🌸 Bloomrest</div>
+                <h1 class="title">Shop Access Invitation</h1>
+            </div>
+            
+            <p>Hi <strong>${name}</strong>,</p>
+            
+            <p>You have been invited to join <strong>${shopName}</strong> as a team member!</p>
+            
+            <div class="code-box">
+                ${verificationCode}
+            </div>
+            
+            <div class="info">
+                <strong>Important:</strong> Keep this verification code secure. You will need it to activate your account.
+            </div>
+            
+            <p>Click the button below to verify your access:</p>
+            
+            <div style="text-align: center;">
+                <a href="${verificationLink}" class="btn">Verify Shop Access</a>
+            </div>
+            
+            <div class="footer">
+                <p>This invitation will expire in 24 hours.</p>
+                <p>If you didn't expect this invitation, please ignore this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `,
+
   // Email Verification Template
   emailVerification: (name, verificationLink) => `
     <!DOCTYPE html>
