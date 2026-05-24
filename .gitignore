@@ -1,6 +1,14 @@
 *.env
+.env.docker
 node_modules
 
 .DS_Store
 /.vscode
 /.idea
+
+# Docker
+.dockerignore
+
+# Logs
+logs
+*.log

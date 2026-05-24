@@ -5,9 +5,16 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js",
+    "start": "nodemon --exec tsx app.ts",
+    "build": "tsc",
     "ngrok": "cd.. && ngrok http --domain=arcelia-unthievish-duplicitously.ngrok-free.dev 5000",
-    "ngrok:ik": "cd.. && ngrok http --domain=untranquil-anastacia-noncosmically.ngrok-free.dev 5000"
+    "ngrok:ik": "cd.. && ngrok http --domain=untranquil-anastacia-noncosmically.ngrok-free.dev 5000",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
+    "docker:dev-down": "docker compose -f docker-compose.dev.yml down",
+    "docker:logs": "docker compose logs -f",
+    "docker:clean": "docker compose down -v"
   },
   "keywords": [],
   "author": "",
@@ -31,6 +38,15 @@
     "twilio": "^5.12.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^20.12.12",
+    "@types/nodemailer": "^6.4.15",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.5"
   }
 }

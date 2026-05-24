@@ -409,3 +409,13 @@ Your fintech platform now includes:
 - ✅ Production-ready security
 
 The system is **enterprise-grade** and ready for serious fintech operations! 🚀
+
+
+# pnpm cmd code
+npm install -g pnpm
+pnpm install
+
+delete node_mudules folder and package-lock.json
+
+
+pnpm add -D typescript @types/node @types/express @types/cors @types/morgan @types/jsonwebtoken @types/bcrypt @types/bcryptjs @types/nodemailer tsx
