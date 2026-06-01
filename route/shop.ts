@@ -6,6 +6,52 @@ import mongoose from "mongoose";
 const router = Router();
 
 /* =========================
+   PUBLIC ROUTES (NO AUTH)
+========================= */
+
+// Get all shop IDs (no auth required)
+router.get("/public/all-ids", async (req, res) => {
+  try {
+    const shops = await Shop.find({}, { _id: 1, name: 1, code: 1 });
+    const shopIds = shops.map(shop => ({
+      id: shop._id,
+      name: shop.name,
+      code: shop.code
+    }));
+    
+    res.json({
+      success: true,
+      data: shopIds,
+      count: shopIds.length
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+// Delete shop by ID (no auth required)
+router.delete("/public/:id", async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+    
+    await Shop.findByIdAndDelete(req.params.id);
+    
+    res.json({
+      success: true,
+      message: "Shop deleted successfully"
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* =========================
    SHOP MANAGEMENT
 ========================= */
 
@@ -17,7 +63,7 @@ router.get("/", auth, async (req, res) => {
     const pageNum = typeof page === 'number' ? page : parseInt(page as string) || 1;
     const limitNum = typeof limit === 'number' ? limit : parseInt(limit as string) || 20;
     const skip = (pageNum - 1) * limitNum;
-    const filters: any = { createdBy: req.user._id, isActive: true };
+    const filters: any = { createdBy: req.user.id, isActive: true };
     
     let query = Shop.find(filters);
     
@@ -55,7 +101,7 @@ router.get("/:id", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -77,9 +123,18 @@ router.post("/", auth, async (req, res) => {
   try {
     const shopData = {
       ...req.body,
-      createdBy: req.user._id,
+      createdBy: req.user.id,
       allowedUsers: [] // Initialize empty allowedUsers array
     };
+    
+    // Remove empty strings from businessInfo to preserve schema defaults
+    if (shopData.businessInfo) {
+      Object.keys(shopData.businessInfo).forEach(key => {
+        if (shopData.businessInfo[key] === '') {
+          delete shopData.businessInfo[key];
+        }
+      });
+    }
     
     // Generate shop code if not provided
     if (!shopData.code) {
@@ -109,14 +164,24 @@ router.put("/:id", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
       return res.status(404).json({ message: "Shop not found" });
     }
     
-    Object.assign(shop, req.body, { updatedBy: new mongoose.Types.ObjectId(req.user._id as string) });
+    // Remove empty strings from businessInfo to preserve schema defaults
+    const updateData = { ...req.body };
+    if (updateData.businessInfo) {
+      Object.keys(updateData.businessInfo).forEach(key => {
+        if (updateData.businessInfo[key] === '') {
+          delete updateData.businessInfo[key];
+        }
+      });
+    }
+    
+    Object.assign(shop, updateData, { updatedBy: new mongoose.Types.ObjectId(req.user.id as string) });
     await shop.save();
     
     res.json({
@@ -135,7 +200,7 @@ router.delete("/:id", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -164,7 +229,7 @@ router.get("/:id/profile", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -193,7 +258,7 @@ router.put("/:id/profile", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -203,7 +268,14 @@ router.put("/:id/profile", auth, async (req, res) => {
     const { section } = req.body;
     
     if (section === "business") {
-      Object.assign(shop.businessInfo, req.body);
+      // Remove empty strings from businessInfo to preserve schema defaults
+      const businessData = { ...req.body };
+      Object.keys(businessData).forEach(key => {
+        if (businessData[key] === '') {
+          delete businessData[key];
+        }
+      });
+      Object.assign(shop.businessInfo, businessData);
     } else if (section === "address") {
       Object.assign(shop.address, req.body);
     } else if (section === "location") {
@@ -218,7 +290,7 @@ router.put("/:id/profile", auth, async (req, res) => {
       return res.status(400).json({ message: "Invalid section" });
     }
     
-    shop.updatedBy = new mongoose.Types.ObjectId(req.user._id as string);
+    shop.updatedBy = new mongoose.Types.ObjectId(req.user.id as string);
     await shop.save();
     
     res.json({
@@ -241,14 +313,14 @@ router.put("/:id/settings", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
       return res.status(404).json({ message: "Shop not found" });
     }
     
-    Object.assign(shop.settings, req.body, { updatedBy: new mongoose.Types.ObjectId(req.user._id as string) });
+    Object.assign(shop.settings, req.body, { updatedBy: new mongoose.Types.ObjectId(req.user.id as string) });
     await shop.save();
     
     res.json({
@@ -271,7 +343,7 @@ router.get("/:id/status", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -301,7 +373,7 @@ router.post("/:id/open", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -325,7 +397,7 @@ router.post("/:id/close", auth, async (req, res) => {
   try {
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {
@@ -359,7 +431,7 @@ router.get("/:id/analytics", auth, async (req, res) => {
     
     const shop = await Shop.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user.id 
     });
     
     if (!shop) {

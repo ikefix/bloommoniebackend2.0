@@ -5,32 +5,12 @@ import Sale from "../models/sale.js";
 import Discount from "../models/discount.js";
 import auth from "../middlewares/auth.js";
 import mongoose from "mongoose";
+import { initializeCart, saveCart, clearCart } from "../services/cartService.js";
 const router = Router();
-// Temporary cart storage (in production, use Redis or database)
-const activeCarts = new Map();
-/* =========================
-   CART MANAGEMENT
-========================= */
-// Initialize cart for user
-const initializeCart = (userId) => {
-    if (!activeCarts.has(userId)) {
-        activeCarts.set(userId, {
-            items: [],
-            customer: null,
-            discount: null,
-            subtotal: 0,
-            discountAmount: 0,
-            taxAmount: 0,
-            totalAmount: 0,
-            createdAt: new Date()
-        });
-    }
-    return activeCarts.get(userId);
-};
 // Get current cart
 router.get("/cart", auth, async (req, res) => {
     try {
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         // Populate product details
         const populatedItems = await Promise.all(cart.items.map(async (item) => {
             const product = await Product.findById(item.productId)
@@ -42,6 +22,7 @@ router.get("/cart", auth, async (req, res) => {
         }));
         cart.items = populatedItems;
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             data: cart
@@ -55,27 +36,27 @@ router.get("/cart", auth, async (req, res) => {
 // Add product to cart
 router.post("/cart/add", auth, async (req, res) => {
     try {
-        const { productId, quantity = 1, barcode, sku } = req.body;
+        const { productId, quantity = 1, barcode, sku, shopId } = req.body;
         let product;
         // Find product by ID, barcode, or SKU
         if (productId) {
             product = await Product.findOne({
                 _id: productId,
-                createdBy: req.user._id,
+                assignedShop: shopId,
                 isActive: true
             }).populate('category brand unit');
         }
         else if (barcode) {
             product = await Product.findOne({
                 barcode,
-                createdBy: req.user._id,
+                assignedShop: shopId,
                 isActive: true
             }).populate('category brand unit');
         }
         else if (sku) {
             product = await Product.findOne({
                 sku,
-                createdBy: req.user._id,
+                assignedShop: shopId,
                 isActive: true
             }).populate('category brand unit');
         }
@@ -87,7 +68,7 @@ router.post("/cart/add", auth, async (req, res) => {
                 message: `Insufficient stock. Only ${product.stock.currentStock} available`
             });
         }
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         // Check if product already in cart
         const existingItemIndex = cart.items.findIndex(item => item.productId.toString() === product._id.toString());
         if (existingItemIndex >= 0) {
@@ -116,6 +97,7 @@ router.post("/cart/add", auth, async (req, res) => {
             });
         }
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Product added to cart",
@@ -134,7 +116,7 @@ router.put("/cart/update", auth, async (req, res) => {
         if (quantity <= 0) {
             return res.status(400).json({ message: "Quantity must be greater than 0" });
         }
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         const itemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
         if (itemIndex === -1) {
             return res.status(404).json({ message: "Item not found in cart" });
@@ -149,6 +131,7 @@ router.put("/cart/update", auth, async (req, res) => {
         cart.items[itemIndex].totalPrice = quantity * cart.items[itemIndex].unitPrice;
         cart.items[itemIndex].finalPrice = cart.items[itemIndex].totalPrice;
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Cart updated",
@@ -163,9 +146,10 @@ router.put("/cart/update", auth, async (req, res) => {
 // Remove item from cart
 router.delete("/cart/:productId", auth, async (req, res) => {
     try {
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         cart.items = cart.items.filter(item => item.productId.toString() !== req.params.productId);
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Item removed from cart",
@@ -180,7 +164,7 @@ router.delete("/cart/:productId", auth, async (req, res) => {
 // Clear cart
 router.delete("/cart", auth, async (req, res) => {
     try {
-        activeCarts.delete(req.user._id);
+        await clearCart(req.user._id);
         res.json({
             success: true,
             message: "Cart cleared"
@@ -223,12 +207,13 @@ router.post("/cart/customer", auth, async (req, res) => {
                 createdBy: req.user._id
             });
         }
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         cart.customer = customer;
         // Apply customer discount if any
         if (customer && customer.discountRate > 0) {
             applyCustomerDiscount(cart, customer);
         }
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Customer added to cart",
@@ -288,13 +273,14 @@ router.post("/cart/discount", auth, async (req, res) => {
         if (!discount) {
             return res.status(404).json({ message: "Invalid discount code" });
         }
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         const canApply = discount.canBeApplied(cart.subtotal);
         if (!canApply.valid) {
             return res.status(400).json({ message: canApply.reason });
         }
         cart.discount = discount;
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Discount applied successfully",
@@ -309,9 +295,10 @@ router.post("/cart/discount", auth, async (req, res) => {
 // Remove discount from cart
 router.delete("/cart/discount", auth, async (req, res) => {
     try {
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         cart.discount = null;
         calculateCartTotals(cart);
+        await saveCart(req.user._id, cart);
         res.json({
             success: true,
             message: "Discount removed",
@@ -354,7 +341,7 @@ const applyCustomerDiscount = (cart, customer) => {
 router.post("/checkout", auth, async (req, res) => {
     try {
         const { paymentMethod, paidAmount, isCreditSale = false, creditDueDate = null, notes = "" } = req.body;
-        const cart = initializeCart(req.user._id);
+        const cart = await initializeCart(req.user._id);
         if (cart.items.length === 0) {
             return res.status(400).json({ message: "Cart is empty" });
         }
@@ -368,6 +355,7 @@ router.post("/checkout", auth, async (req, res) => {
             });
         }
         // Create sale
+        const { shopId } = req.body;
         const saleData = {
             customer: cart.customer?._id || null,
             items: cart.items.map(item => ({
@@ -393,6 +381,7 @@ router.post("/checkout", auth, async (req, res) => {
             creditDueDate,
             notes,
             cashier: req.user._id,
+            assignedShop: shopId,
             createdBy: req.user._id
         };
         // Add payment if not credit sale
@@ -410,8 +399,8 @@ router.post("/checkout", auth, async (req, res) => {
         if (cart.discount) {
             await cart.discount.incrementUsage();
         }
-        // Clear cart
-        activeCarts.delete(req.user._id);
+        // Clear cart from Redis
+        await clearCart(req.user._id);
         // Get populated sale
         const populatedSale = await Sale.findById(sale._id)
             .populate('customer', 'name phone email')

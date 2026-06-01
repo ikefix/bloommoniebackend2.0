@@ -51,7 +51,7 @@ const expenseCategorySchema = new mongoose.Schema({
     timestamps: true
 });
 // Indexes for efficient queries
-expenseCategorySchema.index({ code: 1 });
+// code already has unique: true, so no need for additional index
 expenseCategorySchema.index({ name: 1 });
 expenseCategorySchema.index({ parentCategory: 1 });
 expenseCategorySchema.index({ createdBy: 1 });

@@ -1,4 +1,3 @@
-// Beautiful Email Templates with Blue Color Scheme
 export const emailTemplates = {
     // Shop Invitation Template
     shopInvitation: (name, invitationLink, shopName) => `
@@ -7,13 +6,13 @@ export const emailTemplates = {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Shop Access Invitation - Bloomrest</title>
+        <title>Shop Access Invitation - Bloommonie</title>
         <style>
             body {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
@@ -22,7 +21,7 @@ export const emailTemplates = {
                 background: white;
                 padding: 40px;
                 border-radius: 12px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -31,7 +30,7 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #3b82f6;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .title {
@@ -40,7 +39,7 @@ export const emailTemplates = {
                 margin-bottom: 20px;
             }
             .invitation-box {
-                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                background: #1e3a8a;
                 color: white;
                 padding: 30px;
                 border-radius: 12px;
@@ -55,30 +54,29 @@ export const emailTemplates = {
             .btn {
                 display: inline-block;
                 background: white;
-                color: #3b82f6;
+                color: #1e3a8a;
                 padding: 15px 30px;
                 text-decoration: none;
                 border-radius: 8px;
                 font-weight: 600;
                 margin: 15px 10px;
-                transition: transform 0.2s;
             }
             .btn-primary {
-                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                background: #1e3a8a;
                 color: white;
             }
             .btn:hover {
-                transform: translateY(-2px);
+                background: #1e3a8a;
             }
             .divider {
                 text-align: center;
                 margin: 20px 0;
-                color: #64748b;
+                color: #1e3a8a;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
         </style>
@@ -86,7 +84,7 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">🌸 Bloomrest</div>
+                <div class="logo">🌸 Bloommonie</div>
                 <h1 class="title">Shop Access Invitation</h1>
             </div>
             
@@ -120,19 +118,19 @@ export const emailTemplates = {
     </html>
   `,
     // Shop Verification Template
-    shopVerification: (name, verificationCode, verificationLink, shopName) => `
+    shopVerification: (name, verificationCode, verificationLink, shopName, deepLink) => `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Shop Access Verification - Bloomrest</title>
+        <title>Shop Access Verification - Bloommonie</title>
         <style>
             body {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
@@ -141,7 +139,7 @@ export const emailTemplates = {
                 background: white;
                 padding: 40px;
                 border-radius: 12px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -150,7 +148,7 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #3b82f6;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .title {
@@ -159,7 +157,7 @@ export const emailTemplates = {
                 margin-bottom: 20px;
             }
             .code-box {
-                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                background: #1e3a8a;
                 color: white;
                 font-size: 28px;
                 font-weight: bold;
@@ -171,15 +169,15 @@ export const emailTemplates = {
                 text-transform: uppercase;
             }
             .info {
-                background: #eff6ff;
-                border-left: 4px solid #3b82f6;
+                background: white;
+                border-left: 4px solid #1e3a8a;
                 padding: 20px;
                 margin: 20px 0;
                 border-radius: 0 8px 8px 0;
             }
             .btn {
                 display: inline-block;
-                background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+                background: #1e3a8a;
                 color: white;
                 padding: 15px 30px;
                 text-decoration: none;
@@ -190,7 +188,7 @@ export const emailTemplates = {
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
         </style>
@@ -198,7 +196,7 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">🌸 Bloomrest</div>
+                <div class="logo">🌸 Bloommonie</div>
                 <h1 class="title">Shop Access Invitation</h1>
             </div>
             
@@ -218,6 +216,7 @@ export const emailTemplates = {
             
             <div style="text-align: center;">
                 <a href="${verificationLink}" class="btn">Verify Shop Access</a>
+                ${deepLink ? `<br><br><a href="${process.env.APP_BASE_URL || ''}/api/users/open-in-app?link=${encodeURIComponent(deepLink)}" class="btn" style="background: #10b981; margin-top: 10px;">Open in App</a>` : ''}
             </div>
             
             <div class="footer">
@@ -228,29 +227,29 @@ export const emailTemplates = {
     </body>
     </html>
   `,
-    // Email Verification Template
-    emailVerification: (name, verificationLink) => `
+    // Email Verification Template (OTP)
+    emailVerification: (name, otp) => `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Bloomrest Account</title>
+        <title>Verify Your Bloommonie Account</title>
         <style>
             body {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
                 max-width: 600px;
                 margin: 0 auto;
-                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                background: white;
                 padding: 40px 20px;
                 border-radius: 20px;
-                box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -259,59 +258,54 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #2563eb;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .tagline {
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
             .content {
                 background: white;
                 padding: 40px;
                 border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.05);
+                border: 1px solid #1e3a8a;
             }
             .welcome {
                 font-size: 24px;
-                color: #1e40af;
+                color: #1e3a8a;
                 margin-bottom: 20px;
                 font-weight: 600;
             }
             .message {
-                color: #475569;
+                color: #1e3a8a;
                 line-height: 1.6;
                 margin-bottom: 30px;
             }
-            .verify-button {
-                display: inline-block;
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            .otp-box {
+                background: #1e3a8a;
                 color: white;
-                padding: 15px 40px;
-                text-decoration: none;
-                border-radius: 50px;
-                font-weight: 600;
-                font-size: 16px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-                transition: all 0.3s ease;
-                margin: 20px 0;
-            }
-            .verify-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+                font-size: 36px;
+                font-weight: bold;
+                padding: 25px;
+                border-radius: 12px;
+                text-align: center;
+                letter-spacing: 8px;
+                margin: 30px 0;
+                text-transform: uppercase;
             }
             .security-note {
-                background: #eff6ff;
-                border-left: 4px solid #3b82f6;
+                background: white;
+                border-left: 4px solid #1e3a8a;
                 padding: 20px;
                 margin: 30px 0;
                 border-radius: 8px;
-                color: #1e40af;
+                color: #1e3a8a;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
             .social-links {
@@ -319,7 +313,7 @@ export const emailTemplates = {
             }
             .social-links a {
                 margin: 0 10px;
-                color: #3b82f6;
+                color: #1e3a8a;
                 text-decoration: none;
             }
         </style>
@@ -327,38 +321,40 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">🌸 Bloomrest</div>
+                <div class="logo">🌸 Bloommonie</div>
                 <div class="tagline">Your Complete Business Management Solution</div>
             </div>
             
             <div class="content">
-                <div class="welcome">Welcome to Bloomrest, ${name}! 👋</div>
+                <div class="welcome">Welcome to Bloommonie, ${name}! 👋</div>
                 
                 <div class="message">
-                    Thank you for registering with Bloomrest! We're excited to have you join our community of business owners and managers.
+                    Thank you for registering with Bloommonie! We're excited to have you join our community of business owners and managers.
                 </div>
                 
                 <div class="message">
-                    To complete your registration and activate your account, please click the verification button below:
+                    To complete your registration and activate your account, please use the following verification code:
                 </div>
                 
-                <div style="text-align: center;">
-                    <a href="${verificationLink}" class="verify-button">
-                        ✨ Verify My Account
-                    </a>
+                <div class="otp-box">
+                    ${otp}
+                </div>
+                
+                <div class="message">
+                    Enter this code on the verification page to complete your account setup.
                 </div>
                 
                 <div class="security-note">
-                    <strong>🔒 Security Notice:</strong> This verification link will expire in 24 hours. If you didn't create an account with Bloomrest, please ignore this email.
+                    <strong>🔒 Security Notice:</strong> This verification code will expire in 10 minutes. If you didn't create an account with Bloommonie, please ignore this email.
                 </div>
                 
                 <div class="message">
-                    Need help? Contact our support team at <a href="mailto:support@bloomrest.com" style="color: #3b82f6;">support@bloomrest.com</a>
+                    Need help? Contact our support team at <a href="mailto:support@Bloommonie.com" style="color: #3b82f6;">support@Bloommonie.com</a>
                 </div>
             </div>
             
             <div class="footer">
-                <div>© 2024 Bloomrest. All rights reserved.</div>
+                <div>© 2024 Bloommonie. All rights reserved.</div>
                 <div class="social-links">
                     <a href="#">📧</a>
                     <a href="#">📱</a>
@@ -370,28 +366,28 @@ export const emailTemplates = {
     </html>
   `,
     // Password Reset Template
-    passwordReset: (name, resetLink) => `
+    passwordReset: (name, resetLink, deepLink) => `
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reset Your Bloomrest Password</title>
+        <title>Reset Your Bloommonie Password</title>
         <style>
             body {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
                 max-width: 600px;
                 margin: 0 auto;
-                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                background: white;
                 padding: 40px 20px;
                 border-radius: 20px;
-                box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -400,67 +396,64 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #2563eb;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .tagline {
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
             .content {
                 background: white;
                 padding: 40px;
                 border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.05);
+                border: 1px solid #1e3a8a;
             }
             .title {
                 font-size: 24px;
-                color: #1e40af;
+                color: #1e3a8a;
                 margin-bottom: 20px;
                 font-weight: 600;
             }
             .message {
-                color: #475569;
+                color: #1e3a8a;
                 line-height: 1.6;
                 margin-bottom: 30px;
             }
             .reset-button {
                 display: inline-block;
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                background: #1e3a8a;
                 color: white;
                 padding: 15px 40px;
                 text-decoration: none;
                 border-radius: 50px;
                 font-weight: 600;
                 font-size: 16px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-                transition: all 0.3s ease;
                 margin: 20px 0;
             }
             .reset-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+                background: #1e3a8a;
             }
             .security-note {
-                background: #fef3c7;
-                border-left: 4px solid #f59e0b;
+                background: white;
+                border-left: 4px solid #10b981;
                 padding: 20px;
                 margin: 30px 0;
                 border-radius: 8px;
-                color: #92400e;
+                color: #1e3a8a;
             }
             .expiry-note {
-                background: #fee2e2;
-                border-left: 4px solid #ef4444;
+                background: white;
+                border-left: 4px solid #10b981;
                 padding: 20px;
                 margin: 30px 0;
                 border-radius: 8px;
-                color: #991b1b;
+                color: #1e3a8a;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
         </style>
@@ -468,7 +461,7 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">🔐 Bloomrest</div>
+                <div class="logo">🔐 Bloommonie</div>
                 <div class="tagline">Secure Business Management</div>
             </div>
             
@@ -476,7 +469,7 @@ export const emailTemplates = {
                 <div class="title">Password Reset Request 🔑</div>
                 
                 <div class="message">
-                    Hi ${name}, we received a request to reset your Bloomrest account password.
+                    Hi ${name}, we received a request to reset your Bloommonie account password.
                 </div>
                 
                 <div class="message">
@@ -484,7 +477,7 @@ export const emailTemplates = {
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="${resetLink}" class="reset-button">
+                    <a href="${process.env.APP_BASE_URL || ''}/api/users/open-in-app?link=${encodeURIComponent(deepLink)}" class="reset-button">
                         🔄 Reset My Password
                     </a>
                 </div>
@@ -498,12 +491,12 @@ export const emailTemplates = {
                 </div>
                 
                 <div class="message">
-                    For your safety, make sure your new password is strong and unique to your Bloomrest account.
+                    For your safety, make sure your new password is strong and unique to your Bloommonie account.
                 </div>
             </div>
             
             <div class="footer">
-                <div>© 2024 Bloomrest. Keeping your business secure.</div>
+                <div>© 2024 Bloommonie. Keeping your business secure.</div>
             </div>
         </div>
     </body>
@@ -522,16 +515,16 @@ export const emailTemplates = {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
                 max-width: 600px;
                 margin: 0 auto;
-                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                background: white;
                 padding: 40px 20px;
                 border-radius: 20px;
-                box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -540,18 +533,18 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #2563eb;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .tagline {
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
             .content {
                 background: white;
                 padding: 40px;
                 border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.05);
+                border: 1px solid #1e3a8a;
             }
             .success-icon {
                 font-size: 60px;
@@ -560,53 +553,50 @@ export const emailTemplates = {
             }
             .title {
                 font-size: 24px;
-                color: #059669;
+                color: #10b981;
                 margin-bottom: 20px;
                 font-weight: 600;
                 text-align: center;
             }
             .message {
-                color: #475569;
+                color: #1e3a8a;
                 line-height: 1.6;
                 margin-bottom: 30px;
             }
             .success-box {
-                background: #d1fae5;
+                background: white;
                 border-left: 4px solid #10b981;
                 padding: 20px;
                 margin: 30px 0;
                 border-radius: 8px;
-                color: #065f46;
+                color: #1e3a8a;
             }
             .security-tips {
-                background: #eff6ff;
-                border-left: 4px solid #3b82f6;
+                background: white;
+                border-left: 4px solid #1e3a8a;
                 padding: 20px;
                 margin: 30px 0;
                 border-radius: 8px;
-                color: #1e40af;
+                color: #1e3a8a;
             }
             .login-button {
                 display: inline-block;
-                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                background: #10b981;
                 color: white;
                 padding: 15px 40px;
                 text-decoration: none;
                 border-radius: 50px;
                 font-weight: 600;
                 font-size: 16px;
-                box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
-                transition: all 0.3s ease;
                 margin: 20px 0;
             }
             .login-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+                background: #10b981;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
         </style>
@@ -614,7 +604,7 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">✅ Bloomrest</div>
+                <div class="logo">✅ Bloommonie</div>
                 <div class="tagline">Your Password Has Been Reset</div>
             </div>
             
@@ -623,7 +613,7 @@ export const emailTemplates = {
                 <div class="title">Password Reset Successful!</div>
                 
                 <div class="message">
-                    Hi ${name}, your Bloomrest account password has been successfully reset.
+                    Hi ${name}, your Bloommonie account password has been successfully reset.
                 </div>
                 
                 <div class="success-box">
@@ -632,7 +622,7 @@ export const emailTemplates = {
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="${process.env.APP_LOGIN_URL || '#'}" class="login-button">
+                    <a href="${process.env.APP_DEEP_LINK_SCHEME ? `${process.env.APP_DEEP_LINK_SCHEME}://login` : (process.env.APP_LOGIN_URL || '#')}" class="login-button">
                         🚀 Log In to My Account
                     </a>
                 </div>
@@ -640,18 +630,18 @@ export const emailTemplates = {
                 <div class="security-tips">
                     <strong>🔐 Security Tips:</strong><br>
                     • Keep your password private and secure<br>
-                    • Use a unique password for Bloomrest<br>
+                    • Use a unique password for Bloommonie<br>
                     • Enable two-factor authentication if available<br>
                     • Regularly review your account activity
                 </div>
                 
                 <div class="message">
-                    If you didn't make this change, please contact our support team immediately at <a href="mailto:support@bloomrest.com" style="color: #3b82f6;">support@bloomrest.com</a>
+                    If you didn't make this change, please contact our support team immediately at <a href="mailto:support@Bloommonie.com" style="color: #3b82f6;">support@Bloommonie.com</a>
                 </div>
             </div>
             
             <div class="footer">
-                <div>© 2024 Bloomrest. Your security is our priority.</div>
+                <div>© 2024 Bloommonie. Your security is our priority.</div>
             </div>
         </div>
     </body>
@@ -664,22 +654,22 @@ export const emailTemplates = {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Bloomrest via Google</title>
+        <title>Welcome to Bloommonie via Google</title>
         <style>
             body {
                 margin: 0;
                 padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f8ff;
+                background-color: white;
                 color: #1e3a8a;
             }
             .container {
                 max-width: 600px;
                 margin: 0 auto;
-                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                background: white;
                 padding: 40px 20px;
                 border-radius: 20px;
-                box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+                border: 1px solid #1e3a8a;
             }
             .header {
                 text-align: center;
@@ -688,42 +678,41 @@ export const emailTemplates = {
             .logo {
                 font-size: 32px;
                 font-weight: bold;
-                color: #2563eb;
+                color: #1e3a8a;
                 margin-bottom: 10px;
             }
             .tagline {
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
             .content {
                 background: white;
                 padding: 40px;
                 border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.05);
+                border: 1px solid #1e3a8a;
             }
             .google-badge {
-                background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%);
+                background: #1e3a8a;
                 color: white;
                 padding: 15px 30px;
                 border-radius: 50px;
                 display: inline-block;
                 margin-bottom: 30px;
                 font-weight: 600;
-                box-shadow: 0 10px 25px rgba(66, 133, 244, 0.3);
             }
             .title {
                 font-size: 24px;
-                color: #1e40af;
+                color: #1e3a8a;
                 margin-bottom: 20px;
                 font-weight: 600;
             }
             .message {
-                color: #475569;
+                color: #1e3a8a;
                 line-height: 1.6;
                 margin-bottom: 30px;
             }
             .feature-list {
-                background: #eff6ff;
+                background: white;
                 padding: 25px;
                 border-radius: 12px;
                 margin: 30px 0;
@@ -732,7 +721,7 @@ export const emailTemplates = {
                 display: flex;
                 align-items: center;
                 margin-bottom: 15px;
-                color: #1e40af;
+                color: #1e3a8a;
             }
             .feature-icon {
                 font-size: 20px;
@@ -740,25 +729,22 @@ export const emailTemplates = {
             }
             .dashboard-button {
                 display: inline-block;
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                background: #1e3a8a;
                 color: white;
                 padding: 15px 40px;
                 text-decoration: none;
                 border-radius: 50px;
                 font-weight: 600;
                 font-size: 16px;
-                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-                transition: all 0.3s ease;
                 margin: 20px 0;
             }
             .dashboard-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+                background: #1e3a8a;
             }
             .footer {
                 text-align: center;
                 margin-top: 30px;
-                color: #64748b;
+                color: #1e3a8a;
                 font-size: 14px;
             }
         </style>
@@ -766,14 +752,14 @@ export const emailTemplates = {
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">🌸 Bloomrest</div>
+                <div class="logo">🌸 Bloommonie</div>
                 <div class="tagline">Powered by Google Authentication</div>
             </div>
             
             <div class="content">
                 <div class="google-badge">🔐 Connected with Google</div>
                 
-                <div class="title">Welcome to Bloomrest, ${name}! 🎉</div>
+                <div class="title">Welcome to Bloommonie, ${name}! 🎉</div>
                 
                 <div class="message">
                     Your account has been successfully created and verified through Google authentication. You're all set to start managing your business like never before!
@@ -803,7 +789,7 @@ export const emailTemplates = {
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="${process.env.APP_DASHBOARD_URL || '#'}" class="dashboard-button">
+                    <a href="${process.env.APP_DEEP_LINK_SCHEME ? `${process.env.APP_DEEP_LINK_SCHEME}://dashboard` : (process.env.APP_DASHBOARD_URL || '#')}" class="dashboard-button">
                         🚀 Go to Dashboard
                     </a>
                 </div>
@@ -818,7 +804,7 @@ export const emailTemplates = {
             </div>
             
             <div class="footer">
-                <div>© 2024 Bloomrest. Your Business, Simplified.</div>
+                <div>© 2024 Bloommonie. Your Business, Simplified.</div>
             </div>
         </div>
     </body>

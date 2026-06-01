@@ -40,6 +40,7 @@ export interface ISaleDocument extends Document {
   notes: string;
   cashier: mongoose.Types.ObjectId;
   branch: string;
+  assignedShop?: mongoose.Types.ObjectId | null;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -206,6 +207,11 @@ const saleSchema = new mongoose.Schema({
     type: String,
     default: "main"
   },
+  assignedShop: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Shop",
+    default: null
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -216,7 +222,7 @@ const saleSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-saleSchema.index({ invoiceNumber: 1 });
+// invoiceNumber already has unique: true, so no need for additional index
 saleSchema.index({ customer: 1 });
 saleSchema.index({ cashier: 1 });
 saleSchema.index({ status: 1 });
@@ -334,9 +340,9 @@ saleSchema.methods.processSale = async function() {
 };
 
 // Static method to get sales summary
-saleSchema.statics.getSalesSummary = async function(userId, startDate, endDate) {
+saleSchema.statics.getSalesSummary = async function(shopId, startDate, endDate) {
   const matchStage: any = {
-    createdBy: userId,
+    assignedShop: shopId,
     status: "completed"
   };
   
@@ -371,9 +377,9 @@ saleSchema.statics.getSalesSummary = async function(userId, startDate, endDate) 
 };
 
 // Static method to search sales
-saleSchema.statics.searchSales = function(query, userId, filters = {}) {
+saleSchema.statics.searchSales = function(query, shopId, filters = {}) {
   const searchQuery = {
-    createdBy: userId,
+    assignedShop: shopId,
     ...filters
   };
   

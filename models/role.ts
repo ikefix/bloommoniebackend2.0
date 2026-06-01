@@ -101,11 +101,10 @@ const roleSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-permissionSchema.index({ code: 1 });
+// code already has unique: true in both schemas, so no need for additional index
 permissionSchema.index({ module: 1 });
 permissionSchema.index({ isActive: 1 });
 
-roleSchema.index({ code: 1 });
 roleSchema.index({ level: 1 });
 roleSchema.index({ department: 1 });
 roleSchema.index({ isActive: 1 });

@@ -38,6 +38,7 @@ export interface IInvoiceDocument extends Document {
     url: string;
     type: string;
   }>;
+  assignedShop?: mongoose.Types.ObjectId | null;
   createdBy: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId | null;
   createdAt: Date;
@@ -206,6 +207,11 @@ const invoiceSchema = new mongoose.Schema({
     url: String,
     type: String
   }],
+  assignedShop: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Shop",
+    default: null
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -221,7 +227,7 @@ const invoiceSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-invoiceSchema.index({ invoiceNumber: 1 });
+// invoiceNumber already has unique: true, so no need for additional index
 invoiceSchema.index({ customer: 1 });
 invoiceSchema.index({ supplier: 1 });
 invoiceSchema.index({ type: 1 });
@@ -315,9 +321,9 @@ invoiceSchema.methods.sendInvoice = function(approvedBy) {
 };
 
 // Static method to get overdue invoices
-invoiceSchema.statics.getOverdueInvoices = function(userId) {
+invoiceSchema.statics.getOverdueInvoices = function(shopId) {
   return this.find({
-    createdBy: userId,
+    assignedShop: shopId,
     status: { $in: ["sent", "overdue"] },
     dueDate: { $lt: new Date() }
   })
@@ -327,9 +333,9 @@ invoiceSchema.statics.getOverdueInvoices = function(userId) {
 };
 
 // Static method to search invoices
-invoiceSchema.statics.searchInvoices = function(query, userId, filters = {}) {
+invoiceSchema.statics.searchInvoices = function(query, shopId, filters = {}) {
   const searchQuery = {
-    createdBy: userId,
+    assignedShop: shopId,
     ...filters
   };
   
@@ -348,9 +354,9 @@ invoiceSchema.statics.searchInvoices = function(query, userId, filters = {}) {
 };
 
 // Static method to get invoice summary
-invoiceSchema.statics.getInvoiceSummary = async function(userId, startDate, endDate) {
+invoiceSchema.statics.getInvoiceSummary = async function(shopId, startDate, endDate) {
   const matchStage: any = {
-    createdBy: userId,
+    assignedShop: shopId,
     status: { $in: ["sent", "paid", "overdue"] }
   };
   

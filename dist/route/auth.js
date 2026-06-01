@@ -2,11 +2,11 @@ import { Router } from "express";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 import auth from "../middlewares/auth.js";
-import sendEmail from "../service/sendEmail.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import emailTemplates from "../templates/emailTemplates.js";
 import shop from "../models/shop.js";
+import { emailQueue } from "../queues/index.js";
 const router = Router();
 // OTP rate limiter map: phone -> { count, lastSent }
 const otpLimiter = new Map();
@@ -30,19 +30,90 @@ router.post("/register", async (req, res) => {
         if (phoneExisting)
             return res.status(409).json({ message: "Phone number already in use" });
         const hashedPassword = await bcrypt.hash(password, 10);
-        const verificationToken = crypto.randomBytes(32).toString("hex");
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
         const newUser = new User({
             name,
             email,
             password: hashedPassword,
             phone,
-            verificationToken,
+            otp,
+            otpCreatedAt: otpExpiry,
             verified: false,
             termsAndConditionsAccepted,
         });
         await newUser.save();
-        const verificationLink = `${process.env.APP_VERIFY_URL}/${verificationToken}`;
-        await sendEmail(email, "Verify Your Bloomrest Account", emailTemplates.emailVerification(name, verificationLink));
+        // Create default shop for the new user
+        const defaultShopCode = `${name.substring(0, 3).toUpperCase()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const shopData = {
+            name: `${name}'s Shop`,
+            code: defaultShopCode,
+            type: "retail",
+            description: "Default shop for new user",
+            businessInfo: {
+                businessName: `${name}'s Business`,
+                businessType: "sole_proprietorship",
+                email: email,
+                phone: phone
+            },
+            address: {
+                street: "Default Address",
+                city: "Default City",
+                state: "Default State",
+                country: "Nigeria",
+                zipCode: "000000"
+            },
+            settings: {
+                currency: "NGN",
+                timezone: "Africa/Lagos",
+                dateFormat: "DD/MM/YYYY",
+                taxSettings: {
+                    taxEnabled: true,
+                    taxRate: 7.5,
+                    taxIncluded: false
+                },
+                receiptSettings: {
+                    showLogo: true,
+                    showBusinessInfo: true,
+                    showCustomerInfo: true,
+                    showTaxDetails: true,
+                    showPaymentDetails: true,
+                    footerText: "Thank you for your business!"
+                },
+                paymentMethods: [
+                    {
+                        type: "cash",
+                        name: "Cash",
+                        isActive: true,
+                        fee: 0
+                    }
+                ],
+                securitySettings: {
+                    requireLoginForSales: true,
+                    requireLoginForReports: true,
+                    requireLoginForInventory: true,
+                    sessionTimeout: 30,
+                    maxLoginAttempts: 5,
+                    passwordComplexity: true
+                }
+            },
+            branding: {
+                primaryColor: "#007bff",
+                secondaryColor: "#6c757d",
+                accentColor: "#28a745",
+                fontFamily: "Arial"
+            },
+            createdBy: newUser._id,
+            allowedUsers: [newUser._id]
+        };
+        const newShop = new shop(shopData);
+        await newShop.save();
+        // Queue email sending instead of blocking
+        await emailQueue.add('send-otp', {
+            email,
+            otp,
+            name
+        });
         res.status(201).json({ message: "User registered successfully. Please verify your email." });
     }
     catch (err) {
@@ -51,61 +122,88 @@ router.post("/register", async (req, res) => {
     }
 });
 /* =========================
-   SEND PHONE OTP
+   VERIFY EMAIL WITH OTP
 ========================= */
-// router.post("/send-otp", async (req, res) => {
-//   try {
-//     const { phone } = req.body;
-//     const user = await User.findOne({ phone });
-//     if (!user) return res.status(404).json({ message: "User not found" });
-//     // Rate limiter
-//     const now = Date.now();
-//     const limiter = otpLimiter.get(phone) || { count: 0, lastSent: 0 };
-//     if (now - limiter.lastSent < OTP_WINDOW_MS && limiter.count >= MAX_OTP_PER_WINDOW) {
-//       return res.status(429).json({ message: "Too many OTP requests. Try later." });
-//     }
-//     if (now - limiter.lastSent > OTP_WINDOW_MS) {
-//       limiter.count = 0; // reset count if window passed
-//     }
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     const hashedOtp = await bcrypt.hash(otp, 10);
-//     user.otp = hashedOtp;
-//     user.otpCreatedAt = new Date();
-//     await user.save();
-//     // Update limiter
-//     limiter.count++;
-//     limiter.lastSent = now;
-//     otpLimiter.set(phone, limiter);
-//     await sendOtp(phone, otp); // Twilio SMS
-//     res.json({ message: "OTP sent successfully" });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
-// /* =========================
-//    VERIFY PHONE OTP
-// ========================= */
-// router.post("/verify-otp", async (req, res) => {
-//   try {
-//     const { phone, otp } = req.body;
-//     const user = await User.findOne({ phone });
-//     if (!user) return res.status(404).json({ message: "User not found" });
-//     if (!user.otp) return res.status(400).json({ message: "No OTP found. Request new OTP." });
-//     const otpAge = (Date.now() - new Date(user.otpCreatedAt).getTime()) / 60000;
-//     if (otpAge > OTP_EXPIRY_MINUTES) return res.status(400).json({ message: "OTP expired" });
-//     const isValid = await bcrypt.compare(otp, user.otp);
-//     if (!isValid) return res.status(400).json({ message: "Invalid OTP" });
-//     user.verified = true;
-//     user.otp = null;
-//     user.otpCreatedAt = null;
-//     await user.save();
-//     res.json({ message: "Phone verified successfully" });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
+router.post("/verify-email", async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
+        }
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        if (user.verified) {
+            return res.status(400).json({ message: "Email already verified" });
+        }
+        // Check if OTP matches
+        if (user.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+        // Check if OTP has expired
+        if (user.otpCreatedAt && new Date(user.otpCreatedAt) < new Date()) {
+            return res.status(400).json({ message: "OTP has expired" });
+        }
+        // Verify user and clear OTP
+        user.verified = true;
+        user.otp = null;
+        user.otpCreatedAt = null;
+        await user.save();
+        // Generate JWT token
+        const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '70d' });
+        res.json({
+            message: "Email verified successfully",
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                verified: user.verified
+            }
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+/* =========================
+   RESEND OTP
+========================= */
+router.post("/resend-otp", async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        if (user.verified) {
+            return res.status(400).json({ message: "Email already verified" });
+        }
+        // Generate new OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+        user.otp = otp;
+        user.otpCreatedAt = otpExpiry;
+        await user.save();
+        // Queue OTP email sending instead of blocking
+        await emailQueue.add('send-otp', {
+            email,
+            otp,
+            name: user.name
+        });
+        res.json({ message: "New OTP sent to your email" });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 /* =========================
    LOGIN USER
 ========================= */
@@ -118,8 +216,14 @@ router.post("/login", async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch)
             return res.status(401).json({ message: "Invalid credentials" });
-        const token = crypto.randomBytes(32).toString("hex"); // replace with JWT in production
-        res.json({ token, user });
+        const shops = await shop.find({ createdBy: user._id });
+        // Also find shops where user is in allowedUsers
+        const allowedShops = await shop.find({ allowedUsers: user._id });
+        // Combine all shops user has access to and remove duplicates
+        const allAccessibleShops = [...shops, ...allowedShops];
+        const uniqueShops = allAccessibleShops.filter((shop, index, self) => index === self.findIndex((s) => s._id.toString() === shop._id.toString()));
+        const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '70d' });
+        res.json({ token, user, shops: uniqueShops });
     }
     catch (err) {
         console.error(err);
@@ -142,9 +246,19 @@ router.post("/forgot-password", async (req, res) => {
         user.resetPasswordToken = resetToken;
         user.resetPasswordTokenExpiry = resetTokenExpiry;
         await user.save();
-        // Send reset email
-        const resetLink = `${process.env.APP_RESET_PASSWORD_URL}/${resetToken}`;
-        await sendEmail(email, "Reset Your Bloomrest Password", emailTemplates.passwordReset(user.name, resetLink));
+        // Build reset links
+        // resetLink is always the HTTPS web URL (email clients block custom schemes on primary buttons)
+        // deepLink is the mobile deep link, shown as a secondary "Open in App" button
+        const webLink = `${process.env.APP_RESET_PASSWORD_URL}/${resetToken}`;
+        const deepLink = `${process.env.APP_DEEP_LINK_SCHEME || 'bloomonie'}://reset-password/${resetToken}`;
+        const resetLink = webLink; // always HTTPS for email compatibility
+        await emailQueue.add('send-password-reset', {
+            email,
+            name: user.name,
+            resetLink,
+            deepLink,
+            webLink
+        });
         res.json({ message: "Password reset link sent to your email" });
     }
     catch (err) {
@@ -171,14 +285,74 @@ router.post("/reset-password", async (req, res) => {
         user.resetPasswordToken = null;
         user.resetPasswordTokenExpiry = null;
         await user.save();
-        // Send confirmation email
-        await sendEmail(user.email, "Password Reset Successful", emailTemplates.passwordResetConfirmation(user.name));
+        // Queue confirmation email instead of blocking
+        await emailQueue.add('send-email', {
+            to: user.email,
+            subject: "Password Reset Successful",
+            template: emailTemplates.passwordResetConfirmation(user.name)
+        });
         res.json({ message: "Password reset successfully" });
     }
     catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });
     }
+});
+/* =========================
+   OPEN IN APP REDIRECT
+   HTTPS bridge for deep links in emails — email clients block bloomonie:// directly
+   but allow HTTPS links. This endpoint serves an HTML page that attempts the deep
+   link. No automatic fallback to web URL — that was causing the browser to open
+   localhost:5173 instead of the Electron app.
+========================= */
+router.get("/open-in-app", (req, res) => {
+    const { link } = req.query;
+    if (!link) {
+        return res.status(400).send("Missing link parameter");
+    }
+    // Decode and sanitize — only allow our own deep link scheme
+    const deepLink = decodeURIComponent(link);
+    const scheme = process.env.APP_DEEP_LINK_SCHEME || 'bloomonie';
+    if (!deepLink.startsWith(`${scheme}://`)) {
+        return res.status(400).send("Invalid link");
+    }
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opening Bloomonie...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f8ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: white; padding: 48px 40px; border-radius: 20px; box-shadow: 0 10px 40px rgba(59,130,246,0.15); text-align: center; max-width: 420px; width: 90%; }
+    .logo { font-size: 48px; margin-bottom: 16px; }
+    h2 { color: #1e3a8a; font-size: 22px; margin-bottom: 10px; }
+    p { color: #64748b; font-size: 15px; margin-bottom: 28px; line-height: 1.5; }
+    .btn-open { display: inline-block; padding: 15px 40px; border-radius: 50px; font-weight: 700; font-size: 16px; text-decoration: none; background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; box-shadow: 0 8px 20px rgba(59,130,246,0.35); }
+    .note { margin-top: 20px; font-size: 13px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🌸</div>
+    <h2>Opening Bloomonie</h2>
+    <p>Click the button below to open the Bloomonie desktop app and complete your action.</p>
+    <a href="${deepLink}" class="btn-open" id="openBtn">Open in Bloomonie App</a>
+    <p class="note">If the app doesn't open, make sure Bloomonie is installed on your device.</p>
+  </div>
+  <script>
+    // Attempt to open the app automatically on page load
+    // We do NOT auto-redirect to a web fallback — that was causing the browser
+    // to open localhost:5173 instead of the Electron app.
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.location.href = "${deepLink}";
+      }, 500);
+    });
+  </script>
+</body>
+</html>`);
 });
 /* =========================
    GOOGLE AUTH - REDIRECT
@@ -267,8 +441,77 @@ router.get("/google/callback", async (req, res) => {
                 googleId: googleUser.id
             });
             user = await newUser.save();
-            // Send welcome email for new Google users
-            await sendEmail(user.email, "Welcome to Bloomrest!", emailTemplates.googleWelcome(user.name));
+            // Create default shop for the new Google user
+            const defaultShopCode = `${googleUser.name.substring(0, 3).toUpperCase()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            const shopData = {
+                name: `${googleUser.name}'s Shop`,
+                code: defaultShopCode,
+                type: "retail",
+                description: "Default shop for new user",
+                businessInfo: {
+                    businessName: `${googleUser.name}'s Business`,
+                    businessType: "sole_proprietorship",
+                    email: googleUser.email,
+                    phone: googleUser.phone || '+2348000000000'
+                },
+                address: {
+                    street: "Default Address",
+                    city: "Default City",
+                    state: "Default State",
+                    country: "Nigeria",
+                    zipCode: "000000"
+                },
+                settings: {
+                    currency: "NGN",
+                    timezone: "Africa/Lagos",
+                    dateFormat: "DD/MM/YYYY",
+                    taxSettings: {
+                        taxEnabled: true,
+                        taxRate: 7.5,
+                        taxIncluded: false
+                    },
+                    receiptSettings: {
+                        showLogo: true,
+                        showBusinessInfo: true,
+                        showCustomerInfo: true,
+                        showTaxDetails: true,
+                        showPaymentDetails: true,
+                        footerText: "Thank you for your business!"
+                    },
+                    paymentMethods: [
+                        {
+                            type: "cash",
+                            name: "Cash",
+                            isActive: true,
+                            fee: 0
+                        }
+                    ],
+                    securitySettings: {
+                        requireLoginForSales: true,
+                        requireLoginForReports: true,
+                        requireLoginForInventory: true,
+                        sessionTimeout: 30,
+                        maxLoginAttempts: 5,
+                        passwordComplexity: true
+                    }
+                },
+                branding: {
+                    primaryColor: "#007bff",
+                    secondaryColor: "#6c757d",
+                    accentColor: "#28a745",
+                    fontFamily: "Arial"
+                },
+                createdBy: user._id,
+                allowedUsers: [user._id]
+            };
+            const newShop = new shop(shopData);
+            await newShop.save();
+            // Queue welcome email for new Google users
+            await emailQueue.add('send-welcome', {
+                email: user.email,
+                name: user.name,
+                shopName: `${user.name}'s Shop`
+            });
         }
         else if (!user.authProvider) {
             // Update existing user with Google auth
@@ -279,8 +522,14 @@ router.get("/google/callback", async (req, res) => {
         }
         // Generate JWT token
         const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '70d' });
-        // Redirect to frontend with token
-        const redirectUrl = `http://localhost:5173/auth/google/callback?token=${token}&userId=${user._id}`;
+        // Redirect to deep link if mobile, otherwise web frontend
+        const scheme = process.env.APP_DEEP_LINK_SCHEME || 'bloomonie';
+        const webCallbackUrl = process.env.APP_GOOGLE_CALLBACK_URL || 'http://localhost:5173/auth/google/callback';
+        const deepLinkCallbackUrl = `${scheme}://google-callback?code=${code}`;
+        // Use deep link when configured, otherwise fall back to web URL
+        const redirectUrl = process.env.USE_DEEP_LINKS === 'true'
+            ? `${deepLinkCallbackUrl}?token=${token}&userId=${user._id}`
+            : `${webCallbackUrl}?token=${token}&userId=${user._id}`;
         res.redirect(redirectUrl);
     }
     catch (err) {
@@ -300,12 +549,13 @@ router.get("/me", auth, async (req, res) => {
         const shops = await shop.find({ createdBy: req.user.id });
         // Also find shops where user is in allowedUsers
         const allowedShops = await shop.find({ allowedUsers: req.user.id });
-        // Combine all shops user has access to
+        // Combine all shops user has access to and remove duplicates
         const allAccessibleShops = [...shops, ...allowedShops];
+        const uniqueShops = allAccessibleShops.filter((shop, index, self) => index === self.findIndex((s) => s._id.toString() === shop._id.toString()));
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        res.json({ user, shops: allAccessibleShops });
+        res.json({ user, shops: uniqueShops });
     }
     catch (err) {
         console.error(err);
@@ -344,8 +594,12 @@ router.post("/google/signin", async (req, res) => {
                 googleId: tokenInfo.sub
             });
             user = await newUser.save();
-            // Send welcome email for new Google users
-            await sendEmail(user.email, "Welcome to Bloomrest!", emailTemplates.googleWelcome(user.name));
+            // Queue welcome email for new Google users
+            await emailQueue.add('send-welcome', {
+                email: user.email,
+                name: user.name,
+                shopName: `${user.name}'s Shop`
+            });
         }
         else if (!user.authProvider) {
             // Update existing user with Google auth
@@ -355,7 +609,7 @@ router.post("/google/signin", async (req, res) => {
             await user.save();
         }
         // Generate JWT token
-        const token = crypto.randomBytes(32).toString("hex");
+        const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '70d' });
         res.json({
             message: "Google sign-in successful",
             token,
@@ -399,6 +653,47 @@ router.post("/create-user", auth, async (req, res) => {
         const newUser = new User({ name, email, phone, password: hashedPassword, role });
         await newUser.save();
         res.json({ message: "User created by admin", user: newUser });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+/* =========================
+   PUBLIC ROUTES (NO AUTH)
+========================= */
+// Get all user IDs and emails (no auth required)
+router.get("/public/all-users", async (req, res) => {
+    try {
+        const users = await User.find({}, { _id: 1, email: 1, name: 1 });
+        const userData = users.map(user => ({
+            id: user._id,
+            email: user.email,
+            name: user.name
+        }));
+        res.json({
+            success: true,
+            data: userData,
+            count: userData.length
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+// Delete user by ID (no auth required)
+router.delete("/public/:id", async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        await User.findByIdAndDelete(req.params.id);
+        res.json({
+            success: true,
+            message: "User deleted successfully"
+        });
     }
     catch (err) {
         console.error(err);

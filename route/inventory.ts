@@ -7,6 +7,7 @@ import StockMovement from "../models/stockMovement.js";
 import StockTransfer from "../models/stockTransfer.js";
 import auth from "../middlewares/auth.js";
 import mongoose from "mongoose";
+import { imageSearchQueue } from "../queues/index.js";
 
 const router = Router();
 
@@ -31,9 +32,10 @@ router.get("/products", auth, async (req, res) => {
     const pageNum = typeof page === 'number' ? page : parseInt(page as string) || 1;
     const limitNum = typeof limit === 'number' ? limit : parseInt(limit as string) || 20;
     const skip = (pageNum - 1) * limitNum;
+    const { shopId } = req.query;
     const filters: any = { 
       isActive: true,
-      createdBy: req.user._id 
+      assignedShop: shopId 
     };
     
     if (category) filters.category = category;
@@ -81,9 +83,10 @@ router.get("/products", auth, async (req, res) => {
 // Get single product
 router.get("/products/:id", auth, async (req, res) => {
   try {
+    const { shopId } = req.query;
     const product = await Product.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      assignedShop: shopId 
     })
       .populate('category brand unit createdBy lastUpdatedBy');
     
@@ -108,11 +111,12 @@ router.get("/products/:id", auth, async (req, res) => {
 });
 
 // Create new product
-router.post("/products", auth, async (req, res) => {
+router.post("/product/add", auth, async (req, res) => {
   try {
     const productData = {
       ...req.body,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      assignedShop: req.body.shopId || null
     };
     
     // Generate SKU if not provided
@@ -123,6 +127,14 @@ router.post("/products", auth, async (req, res) => {
     
     const product = new Product(productData);
     await product.save();
+    
+    // Queue image search if no images provided
+    if (!productData.images || productData.images.length === 0 || (productData.images.length === 1 && productData.images[0] === "")) {
+      await imageSearchQueue.add('search-images', {
+        productId: product._id,
+        productName: productData.name
+      });
+    }
     
     await Product.findById(product._id).populate('category brand unit');
     
@@ -143,9 +155,10 @@ router.post("/products", auth, async (req, res) => {
 // Update product
 router.put("/products/:id", auth, async (req, res) => {
   try {
+    const { shopId } = req.body;
     const product = await Product.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      assignedShop: shopId 
     }) as unknown as IProductDocument | null;
     
     if (!product) {
@@ -174,9 +187,10 @@ router.put("/products/:id", auth, async (req, res) => {
 // Delete product (soft delete)
 router.delete("/products/:id", auth, async (req, res) => {
   try {
+    const { shopId } = req.body;
     const product = await Product.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      assignedShop: shopId 
     }) as unknown as IProductDocument | null;
     
     if (!product) {
@@ -204,7 +218,12 @@ router.delete("/products/:id", auth, async (req, res) => {
 // Get category tree
 router.get("/categories", auth, async (req, res) => {
   try {
-    const categories = await Category.find({ createdBy: req.user._id, isActive: true })
+    const { shopId } = req.query;
+    const categories = await Category.find({ 
+      createdBy: req.user._id, 
+      isActive: true,
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
+    })
       .populate('parentId', 'name code');
     
     const buildTree = (categories, parentId = null) => {
@@ -231,10 +250,12 @@ router.get("/categories", auth, async (req, res) => {
 // Get root categories
 router.get("/categories/root", auth, async (req, res) => {
   try {
+    const { shopId } = req.query;
     const categories = await Category.find({ 
       parentId: null, 
       createdBy: req.user._id, 
-      isActive: true 
+      isActive: true,
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
     }).sort({ name: 1 });
     
     res.json({
@@ -248,21 +269,31 @@ router.get("/categories/root", auth, async (req, res) => {
 });
 
 // Create category
-router.post("/categories", auth, async (req, res) => {
+router.post("/categories/add", auth, async (req, res) => {
   try {
+    const { shopId } = req.body;
     const categoryData = {
       ...req.body,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      assignedShop: shopId
     };
     
     // Generate category code if not provided
     if (!categoryData.code) {
-      const count = await Category.countDocuments();
+      const count = await Category.countDocuments({ assignedShop: new mongoose.Types.ObjectId(shopId as string) });
       categoryData.code = `CAT${String(count + 1).padStart(3, '0')}`;
     }
     
     const category = new Category(categoryData);
     await category.save();
+    
+    // Queue image search if no image provided
+    if (!categoryData.image || categoryData.image === "") {
+      await imageSearchQueue.add('search-category-images', {
+        categoryId: category._id,
+        categoryName: categoryData.name
+      });
+    }
     
     res.status(201).json({
       success: true,
@@ -281,9 +312,11 @@ router.post("/categories", auth, async (req, res) => {
 // Update category
 router.put("/categories/:id", auth, async (req, res) => {
   try {
+    const { shopId } = req.body;
     const category = await Category.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user._id,
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
     });
     
     if (!category) {
@@ -307,9 +340,11 @@ router.put("/categories/:id", auth, async (req, res) => {
 // Delete category
 router.delete("/categories/:id", auth, async (req, res) => {
   try {
+    const { shopId } = req.body;
     const category = await Category.findOne({ 
       _id: req.params.id, 
-      createdBy: req.user._id 
+      createdBy: req.user._id,
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
     });
     
     if (!category) {
@@ -320,7 +355,7 @@ router.delete("/categories/:id", auth, async (req, res) => {
     const productCount = await Product.countDocuments({ 
       category: category._id, 
       isActive: true,
-      createdBy: req.user._id 
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
     });
     if (productCount > 0) {
       return res.status(400).json({ 
@@ -332,7 +367,8 @@ router.delete("/categories/:id", auth, async (req, res) => {
     const subcategoryCount = await Category.countDocuments({ 
       parentId: category._id, 
       isActive: true,
-      createdBy: req.user._id 
+      createdBy: req.user._id,
+      assignedShop: new mongoose.Types.ObjectId(shopId as string)
     });
     if (subcategoryCount > 0) {
       return res.status(400).json({ 
@@ -799,7 +835,7 @@ router.get("/dashboard", auth, async (req, res) => {
         isActive: true, 
         "stock.currentStock": 0 
       }),
-      Category.countDocuments({ isActive: true }),
+      Category.countDocuments({ isActive: true, assignedShop: new mongoose.Types.ObjectId(req.query.shopId as string) }),
       Brand.countDocuments({ isActive: true }),
       StockMovement.find({})
         .populate('product', 'name sku')

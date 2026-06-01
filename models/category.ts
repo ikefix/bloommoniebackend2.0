@@ -1,5 +1,27 @@
 import mongoose from "mongoose";
 
+// Document interface (instance methods)
+export interface ICategoryDocument extends Document {
+  name: string;
+  description: string;
+  code: string;
+  parentId?: mongoose.Types.ObjectId | null;
+  image: string;
+  isActive: boolean;
+  createdBy: mongoose.Types.ObjectId;
+  assignedShop?: mongoose.Types.ObjectId | null;
+  createdAt: Date;
+  updatedAt: Date;
+  getFullPath(): Promise<string>;
+}
+
+// Model interface (static methods)
+export interface ICategoryModel extends mongoose.Model<ICategoryDocument> {
+  getCategoryTree(): any;
+  getRootCategories(): any;
+  searchAndSetImage(categoryName: string): Promise<string>;
+}
+
 const categorySchema = new mongoose.Schema({
   name: {
     type: String,
@@ -34,14 +56,18 @@ const categorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
+  },
+  assignedShop: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Shop",
+    default: null
   }
 }, {
   timestamps: true
 });
 
 // Index for efficient queries
-categorySchema.index({ code: 1 });
-categorySchema.index({ name: 1 });
+// code and name already have unique: true, so no need for additional index
 categorySchema.index({ parentId: 1 });
 
 // Static method to get category tree
@@ -82,4 +108,16 @@ categorySchema.methods.getFullPath = async function() {
   return path.join(' > ');
 };
 
-export default mongoose.model("Category", categorySchema);
+// Static method to search and set image for a category
+categorySchema.statics.searchAndSetImage = async function(categoryName: string): Promise<string> {
+  try {
+    const imageSearchService = (await import('../service/imageSearchService.js')).default;
+    const images = await imageSearchService.searchImages(categoryName, 1);
+    return images.length > 0 ? images[0] : "";
+  } catch (error) {
+    console.error('Error searching for category image:', error);
+    return "";
+  }
+};
+
+export default mongoose.model<ICategoryDocument, ICategoryModel>("Category", categorySchema);

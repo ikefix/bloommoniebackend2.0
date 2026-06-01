@@ -8,10 +8,20 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
     }
 
     try {
+        console.log('Auth Middleware Debug:');
+        console.log('Token exists:', !!token);
+        console.log('Token length:', token?.length);
+        console.log('Token first 20 chars:', token?.substring(0, 20));
+        console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Token decoded successfully:', decoded);
         req.user = decoded as any;
         next();
     } catch (err) {
+        console.error('Token verification error:', err);
+        console.error('Error name:', (err as any).name);
+        console.error('Error message:', (err as any).message);
         res.status(400).json({ message: "Invalid token." });
     }
 };

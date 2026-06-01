@@ -92,7 +92,7 @@ const supplierSchema = new mongoose.Schema({
     timestamps: true
 });
 // Indexes for efficient queries
-supplierSchema.index({ code: 1 });
+// code already has unique: true, so no need for additional index
 supplierSchema.index({ name: "text" });
 supplierSchema.index({ phone: 1 });
 supplierSchema.index({ email: 1 });

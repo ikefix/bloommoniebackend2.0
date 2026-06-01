@@ -33,13 +33,17 @@ const categorySchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
+    },
+    assignedShop: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Shop",
+        default: null
     }
 }, {
     timestamps: true
 });
 // Index for efficient queries
-categorySchema.index({ code: 1 });
-categorySchema.index({ name: 1 });
+// code and name already have unique: true, so no need for additional index
 categorySchema.index({ parentId: 1 });
 // Static method to get category tree
 categorySchema.statics.getCategoryTree = async function () {

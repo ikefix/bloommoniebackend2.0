@@ -3,9 +3,13 @@ import express from "express";
 import mongoose from "mongoose";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import RedisStore from "rate-limit-redis";
 import cors from "cors";
 import dns from "dns";       //Remove this during production
 import dotenv from "dotenv";
+import { createClient } from "redis";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 import userRoutes from "./route/auth.js";
 import walletRoutes from "./route/wallet.js";
@@ -25,14 +29,58 @@ import reportsRoutes from "./route/reports.js";
 import shopRoutes from "./route/shop.js";
 import shopVerificationRoutes from "./route/shopVerification.js";
 import shopInvitationRoutes from "./route/shopInvitation.js";
+import { setupSocketEventHandlers } from "./service/socketEvents.js";
 dotenv.config();
 
-
 dns.setServers(["1.1.1.1", "8.8.8.8"]);  //Remove this during production, it's just to ensure that DNS resolution works correctly in development environments where there might be issues with the default DNS servers.
+
+// Redis client for cart storage
+export const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+
+redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+redisClient.on('connect', () => console.log('Redis is on'));
+redisClient.on('ready', () => console.log('Redis is ready'));
+redisClient.connect().catch(console.error);
 
 
 
 const app = express();
+
+// Create HTTP server and Socket.io server
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: ["http://localhost:5173", "https://arcelia-unthievish-duplicitously.ngrok-free.dev", 'https://untranquil-anastacia-noncosmically.ngrok-free.dev'],
+    credentials: true
+  }
+});
+
+// Export io instance for use in workers
+export { io };
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('join-product-room', (productId) => {
+    socket.join(`product-${productId}`);
+    console.log(`Client joined room: product-${productId}`);
+  });
+  
+  socket.on('join-category-room', (categoryId) => {
+    socket.join(`category-${categoryId}`);
+    console.log(`Client joined room: category-${categoryId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Setup Socket event handlers for Redis pub/sub
+setupSocketEventHandlers(io);
 
 
 
@@ -49,15 +97,21 @@ app.use(cors({
 }));
 
 
-/* Rate Limiter */
+/* Rate Limiter with Redis */
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new RedisStore({
+      sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+      prefix: 'rate-limit:'
+    })
 });
 
 app.use(limiter);
 
-const acs = process.env.APIC;
+const acs = process.env.APIC || 'api';
 
 app.use(`/${acs}/users`, userRoutes);
 app.use(`/${acs}/wallet`, walletRoutes);
@@ -75,8 +129,8 @@ app.use(`/${acs}/expenses`, expenseRoutes);
 app.use(`/${acs}/staff`, staffRoutes);
 app.use(`/${acs}/reports`, reportsRoutes);
 app.use(`/${acs}/shops`, shopRoutes);
-app.use(`/api/shop-verification-page`, shopVerificationRoutes);
-app.use(`/api/shop-invitation`, shopInvitationRoutes);
+app.use(`/${acs}/shop-verification-page`, shopVerificationRoutes);
+app.use(`/${acs}/shop-invitation`, shopInvitationRoutes);
 
 app.use('/', (_, res) => {
   res.json({ message: 'Welcome to Bloomrest API', version: '1.0.0' });
@@ -117,6 +171,6 @@ connectWithRetry();
 /* Start Server */
 
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
 });

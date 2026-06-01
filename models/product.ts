@@ -56,6 +56,7 @@ export interface IProductModel extends Model<IProductDocument> {
   getLowStockProducts(): any;
   getOutOfStockProducts(): any;
   searchProducts(query: string, filters?: any): any;
+  searchAndSetImages(productName: string): Promise<string[]>;
 }
 
 const productSchema = new mongoose.Schema({
@@ -84,6 +85,11 @@ const productSchema = new mongoose.Schema({
     ref: "Category",
     required: true
   },
+  assignedShop: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Shop",
+    default: null
+  },
   brand: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Brand",
@@ -109,7 +115,8 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
   images: [{
-    type: String
+    type: String,
+    default: ""
   }],
   specifications: {
     weight: Number,
@@ -186,8 +193,7 @@ const productSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-productSchema.index({ sku: 1 });
-productSchema.index({ barcode: 1 });
+// sku and barcode already have unique: true, so no need for additional index
 productSchema.index({ name: "text", description: "text" });
 productSchema.index({ category: 1 });
 productSchema.index({ brand: 1 });
@@ -275,6 +281,18 @@ productSchema.statics.searchProducts = function(query, filters = {}) {
   return this.find(searchQuery)
     .populate('category brand unit')
     .sort({ name: 1 });
+};
+
+// Static method to search and set images for a product
+productSchema.statics.searchAndSetImages = async function(productName: string): Promise<string[]> {
+  try {
+    const imageSearchService = (await import('../service/imageSearchService.js')).default;
+    const images = await imageSearchService.searchImages(productName, 3);
+    return images;
+  } catch (error) {
+    console.error('Error searching for product images:', error);
+    return [];
+  }
 };
 
 export default mongoose.model<IProductDocument, IProductModel>("Product", productSchema);

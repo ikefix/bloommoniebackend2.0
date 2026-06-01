@@ -6,6 +6,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import sendEmail from "../service/sendEmail.js";
 import emailTemplates from "../templates/emailTemplates.js";
+import { emailQueue } from "../queues/index.js";
 
 const router = Router();
 
@@ -58,12 +59,12 @@ router.post("/accept-invitation", async (req, res) => {
     shop.allowedUsers.push(newUser._id);
     await shop.save();
     
-    // Send welcome email
-    await sendEmail(
-      (newUser as any).email,
-      "Welcome to Bloomrest!",
-      (emailTemplates as any).welcome(newUser.name, (shop as any).shopName)
-    );
+    // Queue welcome email instead of blocking
+    await emailQueue.add('send-welcome', {
+      email: (newUser as any).email,
+      name: newUser.name,
+      shopName: (shop as any).shopName
+    });
     
     res.status(201).json({ 
       message: "Account created successfully! You can now login.",
@@ -132,12 +133,12 @@ router.post("/google-signup", async (req, res) => {
       shop.allowedUsers.push(user._id);
       await shop.save();
       
-      // Send welcome email
-      await sendEmail(
-        (user as any).email,
-        "Welcome to Bloomrest!",
-        (emailTemplates as any).welcome(user.name, (shop as any).shopName)
-      );
+      // Queue welcome email instead of blocking
+      await emailQueue.add('send-welcome', {
+        email: (user as any).email,
+        name: user.name,
+        shopName: (shop as any).shopName
+      });
     } else {
       // Add existing user to shop if not already added
       if (!shop.allowedUsers.includes(user._id)) {

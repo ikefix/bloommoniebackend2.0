@@ -537,3 +537,16 @@ The system handles these Paystack events:
 3. **Amount Validation**: All amounts are validated before processing
 4. **User Authentication**: All endpoints require valid authentication tokens
 5. **Rate Limiting**: Built-in rate limiting to prevent abuse
+
+
+# Install PM2 globally (if not already installed)
+npm install -g pm2
+
+# Start all processes
+pnpm run pm2:start
+
+# Monitor processes
+pnpm run pm2:monit
+
+# View logs
+pnpm run pm2:logs

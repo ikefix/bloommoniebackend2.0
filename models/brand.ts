@@ -46,8 +46,6 @@ const brandSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient queries
-brandSchema.index({ code: 1 });
-brandSchema.index({ name: 1 });
+// code and name already have unique: true, so no need for additional index
 
 export default mongoose.model("Brand", brandSchema);

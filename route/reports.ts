@@ -6,6 +6,7 @@ import Product from "../models/product.js";
 import Expense from "../models/expense.js";
 import auth from "../middlewares/auth.js";
 import mongoose from "mongoose";
+import { redisClient } from "../app.js";
 
 const router = Router();
 
@@ -24,6 +25,20 @@ router.post("/sales", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:sales:${req.user._id}:${startDate}:${endDate}:${groupBy}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Sales report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Sales Report",
       type: "sales",
@@ -40,10 +55,14 @@ router.post("/sales", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Sales report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -66,6 +85,20 @@ router.post("/inventory", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:inventory:${req.user._id}:${startDate}:${endDate}:${includeZeroStock}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Inventory report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Inventory Report",
       type: "inventory",
@@ -82,10 +115,14 @@ router.post("/inventory", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Inventory report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -109,6 +146,20 @@ router.post("/expense", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:expense:${req.user._id}:${startDate}:${endDate}:${groupBy}:${includePending}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Expense report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Expense Report",
       type: "expense",
@@ -126,10 +177,14 @@ router.post("/expense", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Expense report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -151,6 +206,20 @@ router.post("/profit-loss", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:profit-loss:${req.user._id}:${startDate}:${endDate}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Profit & Loss report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Profit & Loss Report",
       type: "profit_loss",
@@ -166,10 +235,14 @@ router.post("/profit-loss", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Profit & Loss report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -191,6 +264,20 @@ router.post("/wallet", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:wallet:${req.user._id}:${startDate}:${endDate}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Wallet report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Wallet Report",
       type: "wallet",
@@ -206,10 +293,14 @@ router.post("/wallet", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Wallet report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -232,6 +323,20 @@ router.post("/credit-sales", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:credit-sales:${req.user._id}:${startDate}:${endDate}:${includeOverdue}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Credit sales report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Credit Sales Report",
       type: "credit_sales",
@@ -248,10 +353,14 @@ router.post("/credit-sales", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Credit sales report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -274,6 +383,20 @@ router.post("/savings", auth, async (req, res) => {
       filters = {} 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:savings:${req.user._id}:${startDate}:${endDate}:${groupBy}:${JSON.stringify(filters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Savings report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Savings Report",
       type: "savings",
@@ -290,10 +413,14 @@ router.post("/savings", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Savings report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -316,6 +443,20 @@ router.post("/staff-performance", auth, async (req, res) => {
       includeDetails = false 
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:staff-performance:${req.user._id}:${startDate}:${endDate}:${department}:${includeDetails}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Staff performance report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: "Staff Performance Report",
       type: "staff_performance",
@@ -332,10 +473,14 @@ router.post("/staff-performance", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Staff performance report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);
@@ -359,6 +504,20 @@ router.post("/custom", auth, async (req, res) => {
       format = "json"
     } = req.body;
     
+    // Create cache key
+    const cacheKey = `report:custom:${req.user._id}:${type}:${JSON.stringify(parameters)}`;
+    
+    // Check cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        message: "Custom report retrieved from cache",
+        data: JSON.parse(cached.toString()),
+        cached: true
+      });
+    }
+    
     const report = new Report({
       name: name || "Custom Report",
       description: description || "Custom generated report",
@@ -373,10 +532,14 @@ router.post("/custom", auth, async (req, res) => {
     
     const result = await (report as unknown as IReportDocument).generateReport(new mongoose.Types.ObjectId(req.user._id as string));
     
+    // Cache result for 5 minutes
+    await redisClient.setex(cacheKey, 300, JSON.stringify(result));
+    
     res.json({
       success: true,
       message: "Custom report generated successfully",
-      data: result
+      data: result,
+      cached: false
     });
   } catch (err) {
     console.error(err);

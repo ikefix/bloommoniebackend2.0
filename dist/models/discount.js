@@ -83,7 +83,7 @@ const discountSchema = new mongoose.Schema({
     timestamps: true
 });
 // Indexes for efficient queries
-discountSchema.index({ code: 1 });
+// code already has unique: true, so no need for additional index
 discountSchema.index({ isActive: 1, startDate: 1, endDate: 1 });
 discountSchema.index({ createdBy: 1 });
 // Virtual for is currently valid

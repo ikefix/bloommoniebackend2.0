@@ -3,6 +3,7 @@ import Sale from "../models/sale.js";
 import Invoice from "../models/invoice.js";
 import auth from "../middlewares/auth.js";
 import mongoose from "mongoose";
+import { redisClient } from "../app.js";
 const router = Router();
 /* =========================
    SALES HISTORY
@@ -14,8 +15,9 @@ router.get("/history", auth, async (req, res) => {
         const pageNum = typeof page === 'number' ? page : parseInt(page) || 1;
         const limitNum = typeof limit === 'number' ? limit : parseInt(limit) || 20;
         const skip = (pageNum - 1) * limitNum;
+        const { shopId } = req.query;
         const filters = {
-            createdBy: req.user._id
+            assignedShop: shopId
         };
         if (customer)
             filters.customer = customer;
@@ -27,7 +29,7 @@ router.get("/history", auth, async (req, res) => {
             filters.startDate = startDate;
         if (endDate)
             filters.endDate = endDate;
-        let query = Sale.searchSales(search, new mongoose.Types.ObjectId(req.user._id), filters);
+        let query = Sale.searchSales(search, new mongoose.Types.ObjectId(shopId), filters);
         const sales = await query
             .skip(skip)
             .limit(limitNum);
@@ -53,8 +55,8 @@ router.get("/history", auth, async (req, res) => {
 // Get sales summary
 router.get("/summary", auth, async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
-        const summary = await Sale.getSalesSummary(new mongoose.Types.ObjectId(req.user._id), startDate, endDate);
+        const { startDate, endDate, shopId } = req.query;
+        const summary = await Sale.getSalesSummary(new mongoose.Types.ObjectId(shopId), startDate, endDate);
         res.json({
             success: true,
             data: summary[0] || {
@@ -82,8 +84,9 @@ router.get("/credit", auth, async (req, res) => {
         const pageNum = typeof page === 'number' ? page : parseInt(page) || 1;
         const limitNum = typeof limit === 'number' ? limit : parseInt(limit) || 20;
         const skip = (pageNum - 1) * limitNum;
+        const { shopId } = req.query;
         const filters = {
-            createdBy: req.user._id,
+            assignedShop: shopId,
             isCreditSale: true
         };
         if (customer)
@@ -100,7 +103,7 @@ router.get("/credit", auth, async (req, res) => {
         // Calculate credit summary
         const creditSummary = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     isCreditSale: true,
                     status: "completed"
                 } },
@@ -149,9 +152,11 @@ router.get("/credit", auth, async (req, res) => {
 // Create credit sale
 router.post("/credit", auth, async (req, res) => {
     try {
+        const { shopId } = req.body;
         const saleData = {
             ...req.body,
             isCreditSale: true,
+            assignedShop: shopId,
             createdBy: req.user._id
         };
         const sale = new Sale(saleData);
@@ -175,10 +180,10 @@ router.post("/credit", auth, async (req, res) => {
 // Update credit sale payment
 router.post("/credit/:id/payment", auth, async (req, res) => {
     try {
-        const { amount, paymentMethod, reference } = req.body;
+        const { amount, paymentMethod, reference, shopId } = req.body;
         const sale = await Sale.findOne({
             _id: req.params.id,
-            createdBy: req.user._id,
+            assignedShop: new mongoose.Types.ObjectId(shopId),
             isCreditSale: true
         });
         if (!sale) {
@@ -208,9 +213,10 @@ router.post("/credit/:id/payment", auth, async (req, res) => {
 // Get overdue credit sales
 router.get("/credit/overdue", auth, async (req, res) => {
     try {
+        const { shopId } = req.query;
         const today = new Date();
         const overdueSales = await Sale.find({
-            createdBy: req.user._id,
+            assignedShop: new mongoose.Types.ObjectId(shopId),
             isCreditSale: true,
             status: "completed",
             creditDueDate: { $lt: today },
@@ -235,10 +241,10 @@ router.get("/credit/overdue", auth, async (req, res) => {
 // Process sale return
 router.post("/:id/return", auth, async (req, res) => {
     try {
-        const { returnItems, reason, refundAmount } = req.body;
+        const { returnItems, reason, refundAmount, shopId } = req.body;
         const sale = await Sale.findOne({
             _id: req.params.id,
-            createdBy: req.user._id
+            assignedShop: new mongoose.Types.ObjectId(shopId)
         });
         if (!sale) {
             return res.status(404).json({ message: "Sale not found" });
@@ -247,7 +253,11 @@ router.post("/:id/return", auth, async (req, res) => {
         const StockMovement = mongoose.model("StockMovement");
         // Process return items
         for (const returnItem of returnItems) {
-            const product = await Product.findById(returnItem.productId);
+            const { shopId } = req.body;
+            const product = await Product.findOne({
+                _id: returnItem.productId,
+                assignedShop: new mongoose.Types.ObjectId(shopId)
+            });
             if (!product) {
                 throw new Error(`Product not found: ${returnItem.productId}`);
             }
@@ -298,8 +308,9 @@ router.get("/returns", auth, async (req, res) => {
         const pageNum = typeof page === 'number' ? page : parseInt(page) || 1;
         const limitNum = typeof limit === 'number' ? limit : parseInt(limit) || 20;
         const skip = (pageNum - 1) * limitNum;
+        const { shopId } = req.query;
         const filters = {
-            createdBy: req.user._id,
+            assignedShop: shopId,
             status: "refunded"
         };
         if (startDate)
@@ -316,7 +327,7 @@ router.get("/returns", auth, async (req, res) => {
         // Calculate return summary
         const returnSummary = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "refunded"
                 } },
             {
@@ -357,10 +368,12 @@ router.get("/returns", auth, async (req, res) => {
 // Create quotation
 router.post("/quotations", auth, async (req, res) => {
     try {
+        const { shopId } = req.body;
         const quotationData = {
             ...req.body,
             type: "quotation",
             status: "draft",
+            assignedShop: shopId,
             createdBy: req.user._id
         };
         const quotation = new Invoice(quotationData);
@@ -387,8 +400,9 @@ router.get("/quotations", auth, async (req, res) => {
         const pageNum = typeof page === 'number' ? page : parseInt(page) || 1;
         const limitNum = typeof limit === 'number' ? limit : parseInt(limit) || 20;
         const skip = (pageNum - 1) * limitNum;
+        const { shopId } = req.query;
         const filters = {
-            createdBy: req.user._id,
+            assignedShop: new mongoose.Types.ObjectId(shopId),
             type: "quotation"
         };
         if (customer)
@@ -423,9 +437,10 @@ router.get("/quotations", auth, async (req, res) => {
 // Convert quotation to invoice
 router.post("/quotations/:id/convert", auth, async (req, res) => {
     try {
+        const { shopId } = req.body;
         const quotation = await Invoice.findOne({
             _id: req.params.id,
-            createdBy: req.user._id,
+            assignedShop: new mongoose.Types.ObjectId(shopId),
             type: "quotation"
         });
         if (!quotation) {
@@ -454,16 +469,27 @@ router.post("/quotations/:id/convert", auth, async (req, res) => {
 // Get daily sales report
 router.get("/reports/daily", auth, async (req, res) => {
     try {
-        const { date } = req.query;
+        const { date, shopId } = req.query;
         if (!date) {
             return res.status(400).json({ message: "Date is required" });
+        }
+        // Create cache key
+        const cacheKey = `sales:daily:${shopId}:${date}`;
+        // Check cache
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            return res.json({
+                success: true,
+                data: JSON.parse(cached.toString()),
+                cached: true
+            });
         }
         const startOfDay = new Date(date);
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
         const dailyReport = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: startOfDay, $lte: endOfDay }
                 } },
@@ -493,7 +519,7 @@ router.get("/reports/daily", auth, async (req, res) => {
         // Calculate daily totals
         const dailyTotals = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: startOfDay, $lte: endOfDay }
                 } },
@@ -516,19 +542,23 @@ router.get("/reports/daily", auth, async (req, res) => {
                 }
             }
         ]);
+        const result = {
+            date,
+            hourlyBreakdown: dailyReport,
+            summary: dailyTotals[0] || {
+                totalSales: 0,
+                totalTransactions: 0,
+                cashSales: 0,
+                creditSales: 0,
+                averageSale: 0
+            }
+        };
+        // Cache result for 5 minutes
+        await redisClient.setex(cacheKey, 300, JSON.stringify(result));
         res.json({
             success: true,
-            data: {
-                date,
-                hourlyBreakdown: dailyReport,
-                summary: dailyTotals[0] || {
-                    totalSales: 0,
-                    totalTransactions: 0,
-                    cashSales: 0,
-                    creditSales: 0,
-                    averageSale: 0
-                }
-            }
+            data: result,
+            cached: false
         });
     }
     catch (err) {
@@ -542,13 +572,24 @@ router.get("/reports/daily", auth, async (req, res) => {
 // Get weekly sales report
 router.get("/reports/weekly", auth, async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, shopId } = req.query;
         if (!startDate || !endDate) {
             return res.status(400).json({ message: "Start date and end date are required" });
         }
+        // Create cache key
+        const cacheKey = `sales:weekly:${shopId}:${startDate}:${endDate}`;
+        // Check cache
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            return res.json({
+                success: true,
+                data: JSON.parse(cached.toString()),
+                cached: true
+            });
+        }
         const weeklyReport = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
                 } },
@@ -575,7 +616,7 @@ router.get("/reports/weekly", auth, async (req, res) => {
         // Calculate weekly totals
         const weeklyTotals = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
                 } },
@@ -598,19 +639,23 @@ router.get("/reports/weekly", auth, async (req, res) => {
                 }
             }
         ]);
+        const result = {
+            period: { startDate, endDate },
+            dailyBreakdown: weeklyReport,
+            summary: weeklyTotals[0] || {
+                totalSales: 0,
+                totalTransactions: 0,
+                cashSales: 0,
+                creditSales: 0,
+                averageSale: 0
+            }
+        };
+        // Cache result for 5 minutes
+        await redisClient.setex(cacheKey, 300, JSON.stringify(result));
         res.json({
             success: true,
-            data: {
-                period: { startDate, endDate },
-                dailyBreakdown: weeklyReport,
-                summary: weeklyTotals[0] || {
-                    totalSales: 0,
-                    totalTransactions: 0,
-                    cashSales: 0,
-                    creditSales: 0,
-                    averageSale: 0
-                }
-            }
+            data: result,
+            cached: false
         });
     }
     catch (err) {
@@ -624,9 +669,20 @@ router.get("/reports/weekly", auth, async (req, res) => {
 // Get monthly sales report
 router.get("/reports/monthly", auth, async (req, res) => {
     try {
-        const { year, month } = req.query;
+        const { year, month, shopId } = req.query;
         if (!year || !month) {
             return res.status(400).json({ message: "Year and month are required" });
+        }
+        // Create cache key
+        const cacheKey = `sales:monthly:${shopId}:${year}:${month}`;
+        // Check cache
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            return res.json({
+                success: true,
+                data: JSON.parse(cached.toString()),
+                cached: true
+            });
         }
         const yearNum = parseInt(year);
         const monthNum = parseInt(month);
@@ -634,7 +690,7 @@ router.get("/reports/monthly", auth, async (req, res) => {
         const endOfMonth = new Date(yearNum, monthNum, 0);
         const monthlyReport = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: startOfMonth, $lte: endOfMonth }
                 } },
@@ -661,7 +717,7 @@ router.get("/reports/monthly", auth, async (req, res) => {
         // Calculate monthly totals
         const monthlyTotals = await Sale.aggregate([
             { $match: {
-                    createdBy: new mongoose.Types.ObjectId(req.user._id),
+                    assignedShop: new mongoose.Types.ObjectId(shopId),
                     status: "completed",
                     createdAt: { $gte: startOfMonth, $lte: endOfMonth }
                 } },
@@ -684,19 +740,23 @@ router.get("/reports/monthly", auth, async (req, res) => {
                 }
             }
         ]);
+        const result = {
+            period: { year, month },
+            dailyBreakdown: monthlyReport,
+            summary: monthlyTotals[0] || {
+                totalSales: 0,
+                totalTransactions: 0,
+                cashSales: 0,
+                creditSales: 0,
+                averageSale: 0
+            }
+        };
+        // Cache result for 5 minutes
+        await redisClient.setex(cacheKey, 300, JSON.stringify(result));
         res.json({
             success: true,
-            data: {
-                period: { year, month },
-                dailyBreakdown: monthlyReport,
-                summary: monthlyTotals[0] || {
-                    totalSales: 0,
-                    totalTransactions: 0,
-                    cashSales: 0,
-                    creditSales: 0,
-                    averageSale: 0
-                }
-            }
+            data: result,
+            cached: false
         });
     }
     catch (err) {

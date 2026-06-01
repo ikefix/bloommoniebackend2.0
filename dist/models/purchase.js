@@ -128,7 +128,7 @@ const purchaseSchema = new mongoose.Schema({
     timestamps: true
 });
 // Indexes for efficient queries
-purchaseSchema.index({ purchaseNumber: 1 });
+// purchaseNumber already has unique: true, so no need for additional index
 purchaseSchema.index({ supplier: 1 });
 purchaseSchema.index({ purchaseOrder: 1 });
 purchaseSchema.index({ status: 1 });

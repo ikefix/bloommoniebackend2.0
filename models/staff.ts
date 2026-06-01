@@ -192,8 +192,7 @@ const staffSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-staffSchema.index({ email: 1 });
-staffSchema.index({ employeeId: 1 });
+// email and employeeId already have unique: true, so no need for additional index
 staffSchema.index({ role: 1 });
 staffSchema.index({ department: 1 });
 staffSchema.index({ status: 1 });

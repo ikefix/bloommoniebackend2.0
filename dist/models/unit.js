@@ -37,9 +37,7 @@ const unitSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-// Index for efficient queries
-unitSchema.index({ code: 1 });
-unitSchema.index({ name: 1 });
+// code and name already have unique: true, so no need for additional index
 // Instance method to convert to base unit
 unitSchema.methods.convertToBase = function (quantity) {
     return quantity * this.conversionFactor;

@@ -315,7 +315,11 @@ router.post("/:id/return", auth, async (req, res) => {
     
     // Process return items
     for (const returnItem of returnItems) {
-      const product = await Product.findById(returnItem.productId);
+      const { shopId } = req.body;
+      const product = await Product.findOne({ 
+        _id: returnItem.productId,
+        assignedShop: shopId 
+      });
       if (!product) {
         throw new Error(`Product not found: ${returnItem.productId}`);
       }

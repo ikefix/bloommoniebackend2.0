@@ -29,7 +29,7 @@ const shopSchema = new mongoose.Schema({
     businessType: {
       type: String,
       enum: ["sole_proprietorship", "partnership", "corporation", "llc"],
-      default: ""
+      default: "sole_proprietorship"
     },
     registrationNumber: {
       type: String,
@@ -213,7 +213,7 @@ const shopSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient queries
-shopSchema.index({ code: 1 });
+// code already has unique: true, so no need for additional index
 shopSchema.index({ createdBy: 1 });
 shopSchema.index({ isActive: 1 });
 shopSchema.index({ "location.coordinates": "2dsphere" });

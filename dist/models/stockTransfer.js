@@ -69,7 +69,7 @@ const stockTransferSchema = new mongoose.Schema({
     timestamps: true
 });
 // Indexes for efficient queries
-stockTransferSchema.index({ transferNumber: 1 });
+// transferNumber already has unique: true, so no need for additional index
 stockTransferSchema.index({ status: 1 });
 stockTransferSchema.index({ fromLocation: 1, toLocation: 1 });
 stockTransferSchema.index({ initiatedBy: 1 });
